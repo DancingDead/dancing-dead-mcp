@@ -1,0 +1,11 @@
+{
+  "dancing-dead": {
+    "displayName": "Dancing Dead",
+    "spotifyUserId": "31zrqreuinlgwqno4x6e6crxqboe",
+    "accessToken": "BQCop0NapGu8_WuCY-jhApNNyquMH_l6I4Mcvv4PI7ougNJnKnq4c4MMzqR5O97JL_U1OuA1Ep6R0iEFSDu8hldxZGzkt1m_l_d6xjokNE-yv_RLq69wMTRdX79nKYckahqVOafCV_r391DEPjrzR1aGvwE-kM-lNaNJbwz7z8A3jUw6w9oxbOPSzsLurF4lhCiZcdqRgp-eUMCUjIo9xu3VmAhiKDklS16sWKcCznfHDRvW29Q3jXzqxJn85YRddBMGyf-lS0hEChfNcTtGmM04AAgHSKkyYrtN6UHsZrBiPrg8lDGcNcRtyeT1qc5Ujn-UBZiB-FvDWvIcUAQ7dIOaKCSElUWn8zsjyti6010oxQZLWFDZmsSA2M5NNqU",
+    "refreshToken": "AQA2tChfJpCgOXx7-irG3UZDL71-gbw6u87FVLximSwyscq5Lwz1Ilitj5rdqhIHtUXCl2uQ9RM-BtLBh-fikHj5utjBC15EdE81jaS4OwXZpB0oIzHKoA1xaCvYmYxk-Ek",
+    "expiresAt": 1770997195455,
+    "scopes": "playlist-read-private playlist-read-collaborative ugc-image-upload playlist-modify-private user-read-email user-read-private user-modify-playback-state user-library-read user-library-modify playlist-modify-public user-read-playback-state user-read-currently-playing user-read-recently-played user-top-read",
+    "addedAt": "2026-02-13T09:46:48.310Z"
+  }
+}

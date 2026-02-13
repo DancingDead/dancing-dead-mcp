@@ -36,7 +36,8 @@ rsync -avz --delete \
   --exclude '.git' \
   --exclude '.env' \
   --exclude '.idea' \
-  ./ "${SSH_USER}@${SSH_HOST}:${REMOTE_DIR}/"
+  --exclude 'data' \
+  ./ "$SSH_USER@$SSH_HOST:~/dancing-dead-mcp/"
 
 # 3. Install dependencies on server
 echo "[3/4] Installing dependencies on server..."

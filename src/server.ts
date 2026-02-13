@@ -3,6 +3,7 @@ import cors from "cors";
 import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { createSpotifyServer } from "./servers/spotify/index.js";
 import { config, logger } from "./config.js";
 import type {
   McpServerEntry,
@@ -163,9 +164,18 @@ app.get("/api/connections", (_req, res) => {
 
 // ── 404 fallback ────────────────────────────
 
-app.use((_req, res) => {
-  res.status(404).json({ error: "Not found" });
-});
+function setupFallbackRoutes(): void {
+  app.use((_req, res) => {
+    res.status(404).json({ error: "Not found" });
+  });
+
+  app.use(
+      (err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+        logger.error("Unhandled error:", err.message);
+        res.status(500).json({ error: "Internal server error" });
+      }
+  );
+}
 
 // ── Error handler ───────────────────────────
 
@@ -223,6 +233,11 @@ function bootstrapDemoServer(): void {
 
 bootstrapDemoServer();
 
+const spotifyEntry = createSpotifyServer(app);
+registerMcpServer(spotifyEntry);
+
+setupFallbackRoutes();
+
 app.listen(config.port, config.host, () => {
   logger.info("================================================");
   logger.info("  Dancing Dead Records - MCP Server");
@@ -231,6 +246,7 @@ app.listen(config.port, config.host, () => {
   logger.info(`  Health      : http://localhost:${config.port}/health`);
   logger.info(`  MCP list    : http://localhost:${config.port}/api/mcp/list`);
   logger.info(`  Ping SSE    : http://localhost:${config.port}/ping/sse`);
+  logger.info(`  Spotify SSE : http://localhost:${config.port}/spotify/sse`);
   logger.info("================================================");
 });
 
