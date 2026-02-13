@@ -1,0 +1,9 @@
+---
+deployment:
+  tasks:
+    - export PATH=/home/zibe1437/nodevenv/repositories/dancing-dead-mcp/18/bin:$PATH
+    - cd /home/zibe1437/repositories/dancing-dead-mcp
+    - npm install --production=false
+    - npm run build
+    - mkdir -p tmp
+    - touch tmp/restart.txt

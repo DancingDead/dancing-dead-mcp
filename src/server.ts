@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
 import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { createSpotifyServer } from "./servers/spotify/index.js";
@@ -160,6 +163,46 @@ app.post("/:mcpName/message", async (req, res) => {
 app.get("/api/connections", (_req, res) => {
   const connections = Array.from(activeConnections.values());
   res.json({ total: connections.length, connections });
+});
+
+// ── Webhook deploy (GitHub → auto-deploy) ───
+
+const __server_filename = fileURLToPath(import.meta.url);
+const PROJECT_ROOT = resolve(dirname(__server_filename), "..");
+
+app.post("/webhook/deploy", (req, res) => {
+  // Only accept push events to master
+  const event = req.headers["x-github-event"];
+  if (event && event !== "push") {
+    res.json({ status: "ignored", reason: `event: ${event}` });
+    return;
+  }
+
+  const ref = req.body?.ref;
+  if (ref && ref !== "refs/heads/master") {
+    res.json({ status: "ignored", reason: `branch: ${ref}` });
+    return;
+  }
+
+  logger.info("Webhook deploy triggered — starting git pull + build...");
+  res.json({ status: "deploying" });
+
+  // Run deploy in background so the response is sent immediately
+  setTimeout(() => {
+    try {
+      const opts = { cwd: PROJECT_ROOT, stdio: "pipe" as const, timeout: 120_000 };
+      logger.info("Running: git pull origin master");
+      execSync("git pull origin master", opts);
+      logger.info("Running: npm install --production=false");
+      execSync("npm install --production=false", opts);
+      logger.info("Running: npm run build");
+      execSync("npm run build", opts);
+      logger.info("Deploy complete — restarting via tmp/restart.txt");
+      execSync("mkdir -p tmp && touch tmp/restart.txt", opts);
+    } catch (err) {
+      logger.error("Deploy failed:", err);
+    }
+  }, 100);
 });
 
 // ── 404 fallback ────────────────────────────
