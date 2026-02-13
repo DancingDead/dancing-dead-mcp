@@ -281,15 +281,17 @@ registerMcpServer(spotifyEntry);
 
 setupFallbackRoutes();
 
-app.listen(config.port, config.host, () => {
+// o2switch/Passenger: listens on the PORT env var (set by Passenger) or defaults to 3000.
+// Binding to 0.0.0.0 ensures Passenger can reach the app.
+app.listen(config.port, () => {
   logger.info("================================================");
   logger.info("  Dancing Dead Records - MCP Server");
   logger.info(`  Environment : ${config.nodeEnv}`);
-  logger.info(`  Listening   : http://${config.host}:${config.port}`);
-  logger.info(`  Health      : http://localhost:${config.port}/health`);
-  logger.info(`  MCP list    : http://localhost:${config.port}/api/mcp/list`);
-  logger.info(`  Ping SSE    : http://localhost:${config.port}/ping/sse`);
-  logger.info(`  Spotify SSE : http://localhost:${config.port}/spotify/sse`);
+  logger.info(`  Port        : ${config.port}`);
+  logger.info(`  Health      : /health`);
+  logger.info(`  MCP list    : /api/mcp/list`);
+  logger.info(`  Ping SSE    : /ping/sse`);
+  logger.info(`  Spotify SSE : /spotify/sse`);
   logger.info("================================================");
 });
 
