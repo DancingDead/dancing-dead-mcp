@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createSpotifyServer } from "./servers/spotify/index.js";
+import { createImageGenServer } from "./servers/image-gen/index.js";
 import { config, logger } from "./config.js";
 import type {
   McpServerEntry,
@@ -297,6 +298,9 @@ bootstrapDemoServer();
 const spotifyEntry = createSpotifyServer(app);
 registerMcpServer(spotifyEntry);
 
+const imageGenEntry = createImageGenServer();
+registerMcpServer(imageGenEntry);
+
 setupFallbackRoutes();
 
 app.listen(config.port, () => {
@@ -308,6 +312,7 @@ app.listen(config.port, () => {
   logger.info(`  MCP list    : /api/mcp/list`);
   logger.info(`  Ping        : /ping/mcp`);
   logger.info(`  Spotify     : /spotify/mcp`);
+  logger.info(`  Image-gen   : /image-gen/mcp`);
   logger.info("================================================");
 });
 

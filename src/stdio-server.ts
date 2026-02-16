@@ -22,7 +22,7 @@ const SERVER_NAME = process.argv[2];
 
 if (!SERVER_NAME) {
   console.error("Usage: stdio-server <server-name>");
-  console.error("Available servers: spotify, ping");
+  console.error("Available servers: spotify, image-gen, ping");
   process.exit(1);
 }
 
@@ -47,6 +47,18 @@ async function main() {
         break;
       }
 
+      case "image-gen": {
+        console.error(`[stdio-server] Loading image-gen tools...`);
+        const { registerImageGenTools } = await import("./servers/image-gen/tools.js");
+        mcpServer = new McpServer({
+          name: "image-gen",
+          version: "1.0.0",
+        });
+        registerImageGenTools(mcpServer);
+        console.error(`[stdio-server] Image-gen tools registered successfully`);
+        break;
+      }
+
       case "ping": {
         console.error(`[stdio-server] Loading ping server...`);
         mcpServer = new McpServer({
@@ -62,7 +74,7 @@ async function main() {
 
       default:
         console.error(`Unknown server: ${SERVER_NAME}`);
-        console.error("Available servers: spotify, ping");
+        console.error("Available servers: spotify, image-gen, ping");
         process.exit(1);
     }
 
