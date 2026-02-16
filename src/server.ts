@@ -192,59 +192,6 @@ app.get("/api/connections", (_req, res) => {
   res.json({ total: sessions.length, sessions });
 });
 
-// ── Diagnostic: test HuggingFace from server (temporary) ──
-
-app.get("/api/debug/hf-test", async (_req, res) => {
-  try {
-    const nodeFetch = (await import("node-fetch")).default;
-    const apiKey = process.env.HUGGINGFACE_API_KEY;
-    const modelUrl = process.env.HUGGINGFACE_MODEL_URL ||
-      "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell";
-
-    const result: Record<string, unknown> = {
-      nodeVersion: process.version,
-      modelUrl,
-      apiKeyPresent: !!apiKey,
-      apiKeyPrefix: apiKey ? apiKey.substring(0, 6) + "..." : "MISSING",
-      fetchLibrary: "node-fetch",
-    };
-
-    const resp = await nodeFetch(modelUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        Accept: "*/*",
-        "User-Agent": "dancing-dead-mcp/1.0",
-      },
-      body: JSON.stringify({ inputs: "a red dot" }),
-      redirect: "follow",
-    });
-
-    result.responseStatus = resp.status;
-    result.responseUrl = resp.url;
-    result.responseHeaders = Object.fromEntries(resp.headers.entries());
-
-    if (resp.ok) {
-      const buf = await resp.arrayBuffer();
-      result.success = true;
-      result.byteLength = buf.byteLength;
-      result.contentType = resp.headers.get("content-type");
-    } else {
-      result.success = false;
-      const text = await resp.text();
-      result.errorBody = text.substring(0, 500);
-    }
-
-    res.json(result);
-  } catch (err: unknown) {
-    res.status(500).json({
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-    });
-  }
-});
-
 // ── Webhook deploy (GitHub → auto-deploy) ───
 
 const __server_filename = fileURLToPath(import.meta.url);
