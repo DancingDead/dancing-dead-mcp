@@ -47,15 +47,35 @@ export async function generateImage(
   const timeout = setTimeout(() => controller.abort(), 120_000);
 
   try {
-    const response = await fetch(config.modelUrl, {
+    const requestHeaders: Record<string, string> = {
+      Authorization: `Bearer ${config.apiKey}`,
+      "Content-Type": "application/json",
+    };
+
+    // First request — follow redirects manually to re-attach auth header
+    let response = await fetch(config.modelUrl, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: requestHeaders,
       body: JSON.stringify(body),
       signal: controller.signal,
+      redirect: "manual",
     });
+
+    // Handle redirects manually (HuggingFace router may redirect)
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("Location");
+      if (location) {
+        logger.info(`[image-gen] Redirected to: ${location}`);
+        response = await fetch(location, {
+          method: "POST",
+          headers: requestHeaders,
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      }
+    }
+
+    logger.info(`[image-gen] Response status: ${response.status}, url: ${response.url}`);
 
     if (!response.ok) {
       let errorMsg: string;
