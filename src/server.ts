@@ -5,7 +5,7 @@ import { execSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createSpotifyServer } from "./servers/spotify/index.js";
 import { config, logger } from "./config.js";
 import type {
@@ -13,7 +13,6 @@ import type {
   McpServerInfo,
   HealthResponse,
   McpListResponse,
-  SseConnection,
 } from "./types.js";
 
 // ============================================
@@ -27,8 +26,9 @@ const startTime = Date.now();
 // ── Registry ────────────────────────────────
 
 const mcpServers = new Map<string, McpServerEntry>();
-const activeConnections = new Map<string, SseConnection>();
-const transports = new Map<string, SSEServerTransport>();
+
+// Streamable HTTP: one transport per session
+const streamableSessions = new Map<string, StreamableHTTPServerTransport>();
 
 // ── Middleware ───────────────────────────────
 
@@ -77,10 +77,15 @@ app.get("/api/mcp/list", (_req, res) => {
   res.json(response);
 });
 
-// ── SSE endpoint (per MCP) ──────────────────
+// ── Streamable HTTP endpoint (per MCP) ──────
+// Handles POST (client→server messages) and GET (server→client SSE stream)
+// at /:mcpName/mcp
 
-app.get("/:mcpName/sse", async (req, res) => {
-  const { mcpName } = req.params;
+async function handleStreamableRequest(
+  req: express.Request,
+  res: express.Response,
+  mcpName: string,
+): Promise<void> {
   const entry = mcpServers.get(mcpName);
 
   if (!entry) {
@@ -93,76 +98,94 @@ app.get("/:mcpName/sse", async (req, res) => {
     return;
   }
 
-  const connectionId = randomUUID();
-  logger.info(`SSE connect: ${mcpName} (${connectionId})`);
+  // Check for existing session
+  const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
-  const transport = new SSEServerTransport(`/${mcpName}/message`, res);
-  transports.set(connectionId, transport);
-
-  activeConnections.set(connectionId, {
-    id: connectionId,
-    mcpName,
-    connectedAt: new Date(),
-  });
-
-  res.on("close", () => {
-    logger.info(`SSE disconnect: ${mcpName} (${connectionId})`);
-    transports.delete(connectionId);
-    activeConnections.delete(connectionId);
-  });
-
-  try {
-    await entry.server.connect(transport);
-  } catch (err) {
-    logger.error(`SSE error for ${mcpName}:`, err);
-    transports.delete(connectionId);
-    activeConnections.delete(connectionId);
+  if (sessionId && streamableSessions.has(sessionId)) {
+    // Existing session — route to its transport
+    const transport = streamableSessions.get(sessionId)!;
+    await transport.handleRequest(req, res, req.body);
+    return;
   }
-});
 
-// ── Message endpoint (per MCP) ──────────────
+  if (sessionId && !streamableSessions.has(sessionId)) {
+    // Invalid session ID
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
 
-app.post("/:mcpName/message", async (req, res) => {
+  // No session ID — new initialization request
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => randomUUID(),
+    enableJsonResponse: true,
+  });
+
+  transport.onclose = () => {
+    const sid = transport.sessionId;
+    if (sid) {
+      logger.info(`Streamable HTTP session closed: ${mcpName} (${sid})`);
+      streamableSessions.delete(sid);
+    }
+  };
+
+  await entry.server.connect(transport);
+
+  // Store the session after connect (sessionId is set during handleRequest)
+  await transport.handleRequest(req, res, req.body);
+
+  if (transport.sessionId) {
+    streamableSessions.set(transport.sessionId, transport);
+    logger.info(`Streamable HTTP session created: ${mcpName} (${transport.sessionId})`);
+  }
+}
+
+// POST /:mcpName/mcp — client messages (initialize, tool calls, etc.)
+app.post("/:mcpName/mcp", async (req, res) => {
   const { mcpName } = req.params;
-  const entry = mcpServers.get(mcpName);
-
-  if (!entry) {
-    res.status(404).json({ error: `MCP server "${mcpName}" not found` });
-    return;
-  }
-
-  const sessionId = req.query.sessionId as string | undefined;
-  if (!sessionId) {
-    res.status(400).json({ error: "Missing sessionId query parameter" });
-    return;
-  }
-
-  const transport = transports.get(sessionId);
-  if (!transport) {
-    // Try to find transport by iterating (sessionId from SSEServerTransport)
-    let found: SSEServerTransport | undefined;
-    for (const [, t] of transports) {
-      if ((t as SSEServerTransport & { sessionId?: string }).sessionId === sessionId) {
-        found = t;
-        break;
-      }
+  try {
+    await handleStreamableRequest(req, res, mcpName);
+  } catch (err) {
+    logger.error(`Streamable HTTP error for ${mcpName}:`, err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal server error" });
     }
-    if (!found) {
-      res.status(404).json({ error: "Session not found. Reconnect via SSE." });
-      return;
-    }
-    await found.handlePostMessage(req, res);
-    return;
   }
-
-  await transport.handlePostMessage(req, res);
 });
 
-// ── Active connections (debug) ──────────────
+// GET /:mcpName/mcp — server→client SSE notification stream
+app.get("/:mcpName/mcp", async (req, res) => {
+  const { mcpName } = req.params;
+  try {
+    await handleStreamableRequest(req, res, mcpName);
+  } catch (err) {
+    logger.error(`Streamable HTTP GET error for ${mcpName}:`, err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+});
+
+// DELETE /:mcpName/mcp — session termination
+app.delete("/:mcpName/mcp", async (req, res) => {
+  const { mcpName } = req.params;
+  try {
+    await handleStreamableRequest(req, res, mcpName);
+  } catch (err) {
+    logger.error(`Streamable HTTP DELETE error for ${mcpName}:`, err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+});
+
+// ── Active sessions (debug) ─────────────────
 
 app.get("/api/connections", (_req, res) => {
-  const connections = Array.from(activeConnections.values());
-  res.json({ total: connections.length, connections });
+  const sessions = Array.from(streamableSessions.entries()).map(([id, t]) => ({
+    sessionId: id,
+    transportSessionId: t.sessionId,
+  }));
+  res.json({ total: sessions.length, sessions });
 });
 
 // ── Webhook deploy (GitHub → auto-deploy) ───
@@ -220,22 +243,7 @@ function setupFallbackRoutes(): void {
   );
 }
 
-// ── Error handler ───────────────────────────
-
-app.use(
-  (
-    err: Error,
-    _req: express.Request,
-    res: express.Response,
-    _next: express.NextFunction,
-  ) => {
-    logger.error("Unhandled error:", err.message);
-    res.status(500).json({ error: "Internal server error" });
-  },
-);
-
 // ── Bootstrap demo MCP ──────────────────────
-// Register a minimal "ping" MCP so the server is immediately usable.
 
 function bootstrapDemoServer(): void {
   const ping = new McpServer({
@@ -257,7 +265,7 @@ function bootstrapDemoServer(): void {
         version: VERSION,
         uptime: Math.floor((Date.now() - startTime) / 1000),
         registeredServers: mcpServers.size,
-        activeConnections: activeConnections.size,
+        activeConnections: streamableSessions.size,
       };
       return { content: [{ type: "text", text: JSON.stringify(info, null, 2) }] };
     },
@@ -281,8 +289,6 @@ registerMcpServer(spotifyEntry);
 
 setupFallbackRoutes();
 
-// o2switch/Passenger: listens on the PORT env var (set by Passenger) or defaults to 3000.
-// Binding to 0.0.0.0 ensures Passenger can reach the app.
 app.listen(config.port, () => {
   logger.info("================================================");
   logger.info("  Dancing Dead Records - MCP Server");
@@ -290,8 +296,8 @@ app.listen(config.port, () => {
   logger.info(`  Port        : ${config.port}`);
   logger.info(`  Health      : /health`);
   logger.info(`  MCP list    : /api/mcp/list`);
-  logger.info(`  Ping SSE    : /ping/sse`);
-  logger.info(`  Spotify SSE : /spotify/sse`);
+  logger.info(`  Ping        : /ping/mcp`);
+  logger.info(`  Spotify     : /spotify/mcp`);
   logger.info("================================================");
 });
 
