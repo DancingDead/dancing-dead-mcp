@@ -50,28 +50,55 @@ export async function generateImage(
     const requestHeaders: Record<string, string> = {
       Authorization: `Bearer ${config.apiKey}`,
       "Content-Type": "application/json",
+      Accept: "*/*",
+      "User-Agent": "dancing-dead-mcp/1.0",
     };
 
-    // First request — follow redirects manually to re-attach auth header
+    const jsonBody = JSON.stringify(body);
+
+    // First request — follow redirects manually to preserve auth header
     let response = await fetch(config.modelUrl, {
       method: "POST",
       headers: requestHeaders,
-      body: JSON.stringify(body),
+      body: jsonBody,
       signal: controller.signal,
       redirect: "manual",
     });
 
-    // Handle redirects manually (HuggingFace router may redirect)
+    // Handle redirects manually (HuggingFace router may redirect to deprecated api-inference)
     if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("Location");
+      let location = response.headers.get("Location");
       if (location) {
-        logger.info(`[image-gen] Redirected to: ${location}`);
+        // If redirected to deprecated api-inference, rewrite URL back to router
+        if (location.includes("api-inference.huggingface.co")) {
+          const url = new URL(location);
+          url.hostname = "router.huggingface.co";
+          url.pathname = "/hf-inference" + url.pathname;
+          location = url.toString();
+          logger.info(`[image-gen] Rewritten deprecated redirect to: ${location}`);
+        } else {
+          logger.info(`[image-gen] Redirected to: ${location}`);
+        }
         response = await fetch(location, {
           method: "POST",
           headers: requestHeaders,
-          body: JSON.stringify(body),
+          body: jsonBody,
           signal: controller.signal,
+          redirect: "manual",
         });
+        // Handle second-level redirect if needed
+        if (response.status >= 300 && response.status < 400) {
+          const loc2 = response.headers.get("Location");
+          if (loc2) {
+            logger.info(`[image-gen] Second redirect to: ${loc2}`);
+            response = await fetch(loc2, {
+              method: "POST",
+              headers: requestHeaders,
+              body: jsonBody,
+              signal: controller.signal,
+            });
+          }
+        }
       }
     }
 
