@@ -5,18 +5,22 @@ import { registerSpotifyTools } from "./tools.js";
 import { logger } from "../../config.js";
 import type { McpServerEntry } from "../../types.js";
 
-export function createSpotifyServer(app: Application): McpServerEntry {
+function buildSpotifyMcpServer(): McpServer {
     const mcpServer = new McpServer({
         name: "spotify",
         version: "1.1.0",
     });
+    registerSpotifyTools(mcpServer);
+    return mcpServer;
+}
 
-    // Monter la route OAuth callback sur Express
+export function createSpotifyServer(app: Application): McpServerEntry {
+    // Mount OAuth routes once on Express
     mountAuthRoutes(app);
     logger.info("Spotify OAuth callback mounted at /spotify/callback");
 
-    // Enregistrer tous les tools
-    registerSpotifyTools(mcpServer);
+    // Build a default instance for the registry
+    const defaultServer = buildSpotifyMcpServer();
     logger.info("Spotify MCP tools registered");
 
     return {
@@ -24,6 +28,7 @@ export function createSpotifyServer(app: Application): McpServerEntry {
         description: "Spotify - playlists, playback, search, library management",
         version: "1.1.0",
         enabled: true,
-        server: mcpServer.server,
+        server: defaultServer.server,
+        createServer: () => buildSpotifyMcpServer().server,
     };
 }

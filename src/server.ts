@@ -115,6 +115,9 @@ async function handleStreamableRequest(
   }
 
   // No session ID — new initialization request
+  // Create a fresh MCP server instance for this session
+  const server = entry.createServer ? entry.createServer() : entry.server;
+
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     enableJsonResponse: true,
@@ -128,7 +131,7 @@ async function handleStreamableRequest(
     }
   };
 
-  await entry.server.connect(transport);
+  await server.connect(transport);
 
   // Store the session after connect (sessionId is set during handleRequest)
   await transport.handleRequest(req, res, req.body);
@@ -245,7 +248,7 @@ function setupFallbackRoutes(): void {
 
 // ── Bootstrap demo MCP ──────────────────────
 
-function bootstrapDemoServer(): void {
+function buildPingServer(): McpServer {
   const ping = new McpServer({
     name: "ping",
     version: "1.0.0",
@@ -271,12 +274,19 @@ function bootstrapDemoServer(): void {
     },
   );
 
+  return ping;
+}
+
+function bootstrapDemoServer(): void {
+  const ping = buildPingServer();
+
   registerMcpServer({
     name: "ping",
     description: "Connectivity test server",
     version: "1.0.0",
     enabled: true,
     server: ping.server,
+    createServer: () => buildPingServer().server,
   });
 }
 

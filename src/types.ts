@@ -17,6 +17,8 @@ export interface McpServerEntry {
   version: string;
   enabled: boolean;
   server: Server;
+  /** Factory to create a fresh Server instance per session (for Streamable HTTP) */
+  createServer?: () => Server;
 }
 
 export interface McpServerInfo {
