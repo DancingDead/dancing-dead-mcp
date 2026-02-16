@@ -19,7 +19,7 @@ export function getImageGenConfig(): ImageGenConfig {
     apiKey,
     modelUrl:
       process.env.HUGGINGFACE_MODEL_URL ||
-      "https://router.huggingface.co/fal-ai/models/black-forest-labs/FLUX.1-schnell",
+      "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
     defaultWidth: parseInt(process.env.IMAGEGEN_DEFAULT_WIDTH || "1024", 10),
     defaultHeight: parseInt(process.env.IMAGEGEN_DEFAULT_HEIGHT || "1024", 10),
   };

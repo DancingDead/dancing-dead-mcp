@@ -1,7 +1,11 @@
 // ============================================
 // Image Generation - HuggingFace API Wrapper
+// Uses node-fetch instead of built-in fetch
+// (Node.js 18 undici uses WebAssembly which OOMs on memory-constrained hosts)
 // ============================================
 
+import fetch from "node-fetch";
+import type { Response } from "node-fetch";
 import { getImageGenConfig } from "./config.js";
 import { logger } from "../../config.js";
 
@@ -56,12 +60,13 @@ export async function generateImage(
 
     const jsonBody = JSON.stringify(body);
 
-    // First request — follow redirects manually to preserve auth header
-    let response = await fetch(config.modelUrl, {
+    // node-fetch follows redirects by default and preserves headers (unlike built-in fetch/undici)
+    // We still use manual redirect to rewrite deprecated api-inference URLs
+    let response: Response = await fetch(config.modelUrl, {
       method: "POST",
       headers: requestHeaders,
       body: jsonBody,
-      signal: controller.signal,
+      signal: controller.signal as never,
       redirect: "manual",
     });
 
@@ -83,7 +88,7 @@ export async function generateImage(
           method: "POST",
           headers: requestHeaders,
           body: jsonBody,
-          signal: controller.signal,
+          signal: controller.signal as never,
           redirect: "manual",
         });
         // Handle second-level redirect if needed
@@ -95,7 +100,7 @@ export async function generateImage(
               method: "POST",
               headers: requestHeaders,
               body: jsonBody,
-              signal: controller.signal,
+              signal: controller.signal as never,
             });
           }
         }
