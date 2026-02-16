@@ -60,52 +60,15 @@ export async function generateImage(
 
     const jsonBody = JSON.stringify(body);
 
-    // node-fetch follows redirects by default and preserves headers (unlike built-in fetch/undici)
-    // We still use manual redirect to rewrite deprecated api-inference URLs
-    let response: Response = await fetch(config.modelUrl, {
+    // node-fetch (unlike built-in fetch/undici) preserves headers across cross-origin redirects,
+    // so we let it follow redirects automatically — no manual handling needed.
+    const response: Response = await fetch(config.modelUrl, {
       method: "POST",
       headers: requestHeaders,
       body: jsonBody,
       signal: controller.signal as never,
-      redirect: "manual",
+      redirect: "follow",
     });
-
-    // Handle redirects manually (HuggingFace router may redirect to deprecated api-inference)
-    if (response.status >= 300 && response.status < 400) {
-      let location = response.headers.get("Location");
-      if (location) {
-        // If redirected to deprecated api-inference, rewrite URL back to router
-        if (location.includes("api-inference.huggingface.co")) {
-          const url = new URL(location);
-          url.hostname = "router.huggingface.co";
-          url.pathname = "/hf-inference" + url.pathname;
-          location = url.toString();
-          logger.info(`[image-gen] Rewritten deprecated redirect to: ${location}`);
-        } else {
-          logger.info(`[image-gen] Redirected to: ${location}`);
-        }
-        response = await fetch(location, {
-          method: "POST",
-          headers: requestHeaders,
-          body: jsonBody,
-          signal: controller.signal as never,
-          redirect: "manual",
-        });
-        // Handle second-level redirect if needed
-        if (response.status >= 300 && response.status < 400) {
-          const loc2 = response.headers.get("Location");
-          if (loc2) {
-            logger.info(`[image-gen] Second redirect to: ${loc2}`);
-            response = await fetch(loc2, {
-              method: "POST",
-              headers: requestHeaders,
-              body: jsonBody,
-              signal: controller.signal as never,
-            });
-          }
-        }
-      }
-    }
 
     logger.info(`[image-gen] Response status: ${response.status}, url: ${response.url}`);
 
