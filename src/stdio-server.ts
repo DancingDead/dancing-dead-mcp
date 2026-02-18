@@ -22,7 +22,7 @@ const SERVER_NAME = process.argv[2];
 
 if (!SERVER_NAME) {
   console.error("Usage: stdio-server <server-name>");
-  console.error("Available servers: spotify, image-gen, ping");
+  console.error("Available servers: spotify, image-gen, ping, n8n");
   process.exit(1);
 }
 
@@ -72,9 +72,62 @@ async function main() {
         break;
       }
 
+      case "n8n": {
+        console.error(`[stdio-server] Loading n8n-mcp proxy...`);
+        // Spawn n8n-mcp as a child process and proxy via MCP Client
+        const { getN8nClient } = await import("./servers/n8n/proxy.js");
+        const { Server } = await import("@modelcontextprotocol/sdk/server/index.js");
+        const { ListToolsRequestSchema, CallToolRequestSchema } = await import(
+          "@modelcontextprotocol/sdk/types.js"
+        );
+
+        const n8nServer = new Server(
+          { name: "n8n", version: "1.0.0" },
+          { capabilities: { tools: {} } },
+        );
+
+        n8nServer.setRequestHandler(ListToolsRequestSchema, async () => {
+          const client = await getN8nClient();
+          return await client.listTools();
+        });
+
+        n8nServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+          const client = await getN8nClient();
+          return await client.callTool({
+            name: request.params.name,
+            arguments: request.params.arguments ?? {},
+          });
+        });
+
+        // Connect to stdio transport (note: getN8nClient spawns its own subprocess,
+        // so the parent stdio is free for the MCP protocol with Claude Desktop)
+        const stdioTransport = new StdioServerTransport();
+        await n8nServer.connect(stdioTransport);
+        console.error(`[stdio-server] n8n proxy connected via stdio`);
+
+        process.on("SIGINT", async () => {
+          console.error(`[stdio-server] Received SIGINT, shutting down n8n...`);
+          const { closeN8nClient } = await import("./servers/n8n/proxy.js");
+          await closeN8nClient();
+          await n8nServer.close();
+          process.exit(0);
+        });
+
+        process.on("SIGTERM", async () => {
+          console.error(`[stdio-server] Received SIGTERM, shutting down n8n...`);
+          const { closeN8nClient } = await import("./servers/n8n/proxy.js");
+          await closeN8nClient();
+          await n8nServer.close();
+          process.exit(0);
+        });
+
+        // n8n server manages its own lifecycle — return early to skip default connect
+        return;
+      }
+
       default:
         console.error(`Unknown server: ${SERVER_NAME}`);
-        console.error("Available servers: spotify, image-gen, ping");
+        console.error("Available servers: spotify, image-gen, ping, n8n");
         process.exit(1);
     }
 

@@ -8,6 +8,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createSpotifyServer } from "./servers/spotify/index.js";
 import { createImageGenServer } from "./servers/image-gen/index.js";
+import { createN8nServer } from "./servers/n8n/index.js";
 import { config, logger } from "./config.js";
 import type {
   McpServerEntry,
@@ -301,6 +302,16 @@ registerMcpServer(spotifyEntry);
 const imageGenEntry = createImageGenServer();
 registerMcpServer(imageGenEntry);
 
+// n8n: async initialization (non-blocking — server starts while n8n-mcp subprocess warms up)
+createN8nServer()
+  .then((n8nEntry) => {
+    registerMcpServer(n8nEntry);
+    logger.info("[n8n] Server registered in hub");
+  })
+  .catch((err) => {
+    logger.warn("[n8n] Could not initialize n8n server:", err);
+  });
+
 setupFallbackRoutes();
 
 app.listen(config.port, () => {
@@ -313,6 +324,7 @@ app.listen(config.port, () => {
   logger.info(`  Ping        : /ping/mcp`);
   logger.info(`  Spotify     : /spotify/mcp`);
   logger.info(`  Image-gen   : /image-gen/mcp`);
+  logger.info(`  n8n         : /n8n/mcp`);
   logger.info("================================================");
 });
 
