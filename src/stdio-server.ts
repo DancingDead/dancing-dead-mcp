@@ -22,7 +22,7 @@ const SERVER_NAME = process.argv[2];
 
 if (!SERVER_NAME) {
   console.error("Usage: stdio-server <server-name>");
-  console.error("Available servers: spotify, image-gen, ping, n8n");
+  console.error("Available servers: spotify, image-gen, soundcharts, ping, n8n");
   process.exit(1);
 }
 
@@ -69,6 +69,18 @@ async function main() {
           return { content: [{ type: "text", text: "pong" }] };
         });
         console.error(`[stdio-server] Ping server ready`);
+        break;
+      }
+
+      case "soundcharts": {
+        console.error(`[stdio-server] Loading Soundcharts tools...`);
+        const { registerSoundchartsTools } = await import("./servers/soundcharts/tools.js");
+        mcpServer = new McpServer({
+          name: "soundcharts",
+          version: "1.0.0",
+        });
+        registerSoundchartsTools(mcpServer);
+        console.error(`[stdio-server] Soundcharts tools registered successfully`);
         break;
       }
 
@@ -127,7 +139,7 @@ async function main() {
 
       default:
         console.error(`Unknown server: ${SERVER_NAME}`);
-        console.error("Available servers: spotify, image-gen, ping, n8n");
+        console.error("Available servers: spotify, image-gen, soundcharts, ping, n8n");
         process.exit(1);
     }
 

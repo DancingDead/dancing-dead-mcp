@@ -9,6 +9,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createSpotifyServer } from "./servers/spotify/index.js";
 import { createImageGenServer } from "./servers/image-gen/index.js";
 import { createN8nServer } from "./servers/n8n/index.js";
+import { createSoundchartsServer } from "./servers/soundcharts/index.js";
 import { config, logger } from "./config.js";
 import type {
   McpServerEntry,
@@ -302,6 +303,9 @@ registerMcpServer(spotifyEntry);
 const imageGenEntry = createImageGenServer();
 registerMcpServer(imageGenEntry);
 
+const soundchartsEntry = createSoundchartsServer();
+registerMcpServer(soundchartsEntry);
+
 // n8n: async initialization (non-blocking — server starts while n8n-mcp subprocess warms up)
 createN8nServer()
   .then((n8nEntry) => {
@@ -324,6 +328,7 @@ app.listen(config.port, () => {
   logger.info(`  Ping        : /ping/mcp`);
   logger.info(`  Spotify     : /spotify/mcp`);
   logger.info(`  Image-gen   : /image-gen/mcp`);
+  logger.info(`  Soundcharts : /soundcharts/mcp`);
   logger.info(`  n8n         : /n8n/mcp`);
   logger.info("================================================");
 });
