@@ -31,8 +31,8 @@ export function createSoundchartsServer(): McpServerEntry {
   return {
     name: "soundcharts",
     description:
-      "Music industry search — artist/song search, platform identifiers (Spotify/Apple/YouTube IDs)",
-    version: "1.0.0",
+      "Music industry analytics — artist search, metadata, events, discography, platform IDs (11 tools)",
+    version: "1.1.0",
     enabled: true,
     server: defaultServer.server,
     createServer: () => buildSoundchartsMcpServer().server,

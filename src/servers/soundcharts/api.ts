@@ -57,6 +57,45 @@ export class SoundchartsApiClient {
     return this.makeRequest(`/api/v2/artist/${uuid}/identifiers`);
   }
 
+  async getArtistMetadata(uuid: string): Promise<any> {
+    return this.makeRequest(`/api/v2.9/artist/${uuid}`);
+  }
+
+  async getArtistEvents(
+    uuid: string,
+    params?: { startDate?: string; endDate?: string; limit?: number },
+  ): Promise<any> {
+    const queryParams: Record<string, string> = {};
+    if (params?.startDate) queryParams.startDate = params.startDate;
+    if (params?.endDate) queryParams.endDate = params.endDate;
+    if (params?.limit) queryParams.limit = String(params.limit);
+    return this.makeRequest(`/api/v2/artist/${uuid}/events`, queryParams);
+  }
+
+  async getArtistSongs(
+    uuid: string,
+    params?: { offset?: number; limit?: number; sortBy?: string; sortOrder?: string },
+  ): Promise<any> {
+    const queryParams: Record<string, string> = {};
+    if (params?.offset !== undefined) queryParams.offset = String(params.offset);
+    if (params?.limit) queryParams.limit = String(params.limit);
+    if (params?.sortBy) queryParams.sortBy = params.sortBy;
+    if (params?.sortOrder) queryParams.sortOrder = params.sortOrder;
+    return this.makeRequest(`/api/v2.21/artist/${uuid}/songs`, queryParams);
+  }
+
+  async getArtistAlbums(
+    uuid: string,
+    params?: { offset?: number; limit?: number; sortBy?: string; sortOrder?: string },
+  ): Promise<any> {
+    const queryParams: Record<string, string> = {};
+    if (params?.offset !== undefined) queryParams.offset = String(params.offset);
+    if (params?.limit) queryParams.limit = String(params.limit);
+    if (params?.sortBy) queryParams.sortBy = params.sortBy;
+    if (params?.sortOrder) queryParams.sortOrder = params.sortOrder;
+    return this.makeRequest(`/api/v2.34/artist/${uuid}/albums`, queryParams);
+  }
+
   // ── Referential Data ────────────────────────
 
   async getPlatforms(): Promise<any> {

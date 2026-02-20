@@ -99,6 +99,101 @@ export function registerSoundchartsTools(mcpServer: McpServer): void {
     },
   );
 
+  mcpServer.tool(
+    "soundcharts-get-artist-metadata",
+    "Get enriched artist metadata (biography, birth date, gender, genres, IPI, ISNI, career stage)",
+    {
+      uuid: z.string().describe("Soundcharts artist UUID"),
+    },
+    async ({ uuid }) => {
+      try {
+        const metadata = await client.getArtistMetadata(uuid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(metadata, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: `Error: ${formatError(err)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  mcpServer.tool(
+    "soundcharts-get-artist-events",
+    "Get artist concerts and festival performances with venue details",
+    {
+      uuid: z.string().describe("Soundcharts artist UUID"),
+      startDate: z.string().optional().describe("Start date (YYYY-MM-DD)"),
+      endDate: z.string().optional().describe("End date (YYYY-MM-DD)"),
+      limit: z.number().optional().describe("Maximum results (default: 20, max: 100)"),
+    },
+    async ({ uuid, startDate, endDate, limit }) => {
+      try {
+        const events = await client.getArtistEvents(uuid, { startDate, endDate, limit });
+        return {
+          content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: `Error: ${formatError(err)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  mcpServer.tool(
+    "soundcharts-get-artist-songs",
+    "Get artist discography (all songs/tracks) with release dates",
+    {
+      uuid: z.string().describe("Soundcharts artist UUID"),
+      offset: z.number().optional().describe("Pagination offset (default: 0)"),
+      limit: z.number().optional().describe("Results per page (default: 20, max: 100)"),
+      sortBy: z.enum(["releaseDate", "name"]).optional().describe("Sort field"),
+      sortOrder: z.enum(["asc", "desc"]).optional().describe("Sort order"),
+    },
+    async ({ uuid, offset, limit, sortBy, sortOrder }) => {
+      try {
+        const songs = await client.getArtistSongs(uuid, { offset, limit, sortBy, sortOrder });
+        return {
+          content: [{ type: "text", text: JSON.stringify(songs, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: `Error: ${formatError(err)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  mcpServer.tool(
+    "soundcharts-get-artist-albums",
+    "Get artist albums, EPs, and singles with release dates and types",
+    {
+      uuid: z.string().describe("Soundcharts artist UUID"),
+      offset: z.number().optional().describe("Pagination offset (default: 0)"),
+      limit: z.number().optional().describe("Results per page (default: 20, max: 100)"),
+      sortBy: z.enum(["title", "releaseDate"]).optional().describe("Sort field"),
+      sortOrder: z.enum(["asc", "desc"]).optional().describe("Sort order"),
+    },
+    async ({ uuid, offset, limit, sortBy, sortOrder }) => {
+      try {
+        const albums = await client.getArtistAlbums(uuid, { offset, limit, sortBy, sortOrder });
+        return {
+          content: [{ type: "text", text: JSON.stringify(albums, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: `Error: ${formatError(err)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
   // ── Referential Data Tools ──────────────────
 
   mcpServer.tool(
