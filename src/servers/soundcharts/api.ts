@@ -47,6 +47,16 @@ export class SoundchartsApiClient {
     return this.makeRequest(`/api/v2/song/search/${encodedQuery}`, { limit: String(limit) });
   }
 
+  async searchVenues(query: string, limit = 10): Promise<any> {
+    const encodedQuery = encodeURIComponent(query);
+    return this.makeRequest(`/api/v2/venue/search/${encodedQuery}`, { limit: String(limit) });
+  }
+
+  async searchFestivals(query: string, limit = 10): Promise<any> {
+    const encodedQuery = encodeURIComponent(query);
+    return this.makeRequest(`/api/v2/festival/search/${encodedQuery}`, { limit: String(limit) });
+  }
+
   // ── Artist ──────────────────────────────────
 
   async getArtist(uuid: string): Promise<any> {
@@ -84,16 +94,113 @@ export class SoundchartsApiClient {
     return this.makeRequest(`/api/v2.21/artist/${uuid}/songs`, queryParams);
   }
 
-  async getArtistAlbums(
+  async getArtistAudience(
     uuid: string,
-    params?: { offset?: number; limit?: number; sortBy?: string; sortOrder?: string },
+    platform: "spotify" | "tiktok",
+    params?: { startDate?: string; endDate?: string; offset?: number; limit?: number },
   ): Promise<any> {
     const queryParams: Record<string, string> = {};
+    if (params?.startDate) queryParams.startDate = params.startDate;
+    if (params?.endDate) queryParams.endDate = params.endDate;
     if (params?.offset !== undefined) queryParams.offset = String(params.offset);
     if (params?.limit) queryParams.limit = String(params.limit);
-    if (params?.sortBy) queryParams.sortBy = params.sortBy;
-    if (params?.sortOrder) queryParams.sortOrder = params.sortOrder;
-    return this.makeRequest(`/api/v2.34/artist/${uuid}/albums`, queryParams);
+    return this.makeRequest(`/api/v2/artist/${uuid}/audience/${platform}`, queryParams);
+  }
+
+  async getArtistStreaming(
+    uuid: string,
+    params?: { startDate?: string; endDate?: string; offset?: number; limit?: number },
+  ): Promise<any> {
+    const queryParams: Record<string, string> = {};
+    if (params?.startDate) queryParams.startDate = params.startDate;
+    if (params?.endDate) queryParams.endDate = params.endDate;
+    if (params?.offset !== undefined) queryParams.offset = String(params.offset);
+    if (params?.limit) queryParams.limit = String(params.limit);
+    return this.makeRequest(`/api/v2/artist/${uuid}/streaming/spotify/listening`, queryParams);
+  }
+
+  async getArtistPopularity(
+    uuid: string,
+    params?: { startDate?: string; endDate?: string; offset?: number; limit?: number },
+  ): Promise<any> {
+    const queryParams: Record<string, string> = {};
+    if (params?.startDate) queryParams.startDate = params.startDate;
+    if (params?.endDate) queryParams.endDate = params.endDate;
+    if (params?.offset !== undefined) queryParams.offset = String(params.offset);
+    if (params?.limit) queryParams.limit = String(params.limit);
+    return this.makeRequest(`/api/v2/artist/${uuid}/popularity/spotify`, queryParams);
+  }
+
+  async getArtistSoundchartsScore(uuid: string): Promise<any> {
+    return this.makeRequest(`/api/v2/artist/${uuid}/soundcharts/score`);
+  }
+
+  async getArtistSongChartRanks(
+    uuid: string,
+    params?: { startDate?: string; endDate?: string; offset?: number; limit?: number },
+  ): Promise<any> {
+    const queryParams: Record<string, string> = {};
+    if (params?.startDate) queryParams.startDate = params.startDate;
+    if (params?.endDate) queryParams.endDate = params.endDate;
+    if (params?.offset !== undefined) queryParams.offset = String(params.offset);
+    if (params?.limit) queryParams.limit = String(params.limit);
+    return this.makeRequest(`/api/v2/artist/${uuid}/charts/song/ranks/spotify`, queryParams);
+  }
+
+  // ── Song ────────────────────────────────────
+
+  async getSong(uuid: string): Promise<any> {
+    return this.makeRequest(`/api/v2/song/${uuid}`);
+  }
+
+  async getSongIdentifiers(uuid: string): Promise<any> {
+    return this.makeRequest(`/api/v2/song/${uuid}/identifiers`);
+  }
+
+  async getSongPopularity(
+    uuid: string,
+    params?: { startDate?: string; endDate?: string; offset?: number; limit?: number },
+  ): Promise<any> {
+    const queryParams: Record<string, string> = {};
+    if (params?.startDate) queryParams.startDate = params.startDate;
+    if (params?.endDate) queryParams.endDate = params.endDate;
+    if (params?.offset !== undefined) queryParams.offset = String(params.offset);
+    if (params?.limit) queryParams.limit = String(params.limit);
+    return this.makeRequest(`/api/v2.14/song/${uuid}/popularity/spotify`, queryParams);
+  }
+
+  async getSongAudience(
+    uuid: string,
+    params?: { startDate?: string; endDate?: string; offset?: number; limit?: number },
+  ): Promise<any> {
+    const queryParams: Record<string, string> = {};
+    if (params?.startDate) queryParams.startDate = params.startDate;
+    if (params?.endDate) queryParams.endDate = params.endDate;
+    if (params?.offset !== undefined) queryParams.offset = String(params.offset);
+    if (params?.limit) queryParams.limit = String(params.limit);
+    return this.makeRequest(`/api/v2/song/${uuid}/audience/spotify`, queryParams);
+  }
+
+  async getSongChartRanks(
+    uuid: string,
+    params?: { startDate?: string; endDate?: string; offset?: number; limit?: number },
+  ): Promise<any> {
+    const queryParams: Record<string, string> = {};
+    if (params?.startDate) queryParams.startDate = params.startDate;
+    if (params?.endDate) queryParams.endDate = params.endDate;
+    if (params?.offset !== undefined) queryParams.offset = String(params.offset);
+    if (params?.limit) queryParams.limit = String(params.limit);
+    return this.makeRequest(`/api/v2/song/${uuid}/charts/ranks/spotify`, queryParams);
+  }
+
+  // ── Venue & Festival ────────────────────────
+
+  async getVenue(uuid: string): Promise<any> {
+    return this.makeRequest(`/api/v2/venue/${uuid}`);
+  }
+
+  async getFestival(uuid: string): Promise<any> {
+    return this.makeRequest(`/api/v2/festival/${uuid}`);
   }
 
   // ── Referential Data ────────────────────────
