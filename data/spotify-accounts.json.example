@@ -1,0 +1,9 @@
+{
+  "account-id": {
+    "displayName": "Spotify Account Name",
+    "accessToken": "BQXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "refreshToken": "AQxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "expiresAt": 1234567890000,
+    "addedAt": "2026-01-01T00:00:00.000Z"
+  }
+}

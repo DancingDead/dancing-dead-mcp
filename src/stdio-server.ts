@@ -22,7 +22,7 @@ const SERVER_NAME = process.argv[2];
 
 if (!SERVER_NAME) {
   console.error("Usage: stdio-server <server-name>");
-  console.error("Available servers: spotify, image-gen, soundcharts, ping, n8n");
+  console.error("Available servers: spotify, image-gen, soundcharts, google-calendar, ping, n8n");
   process.exit(1);
 }
 
@@ -84,6 +84,18 @@ async function main() {
         break;
       }
 
+      case "google-calendar": {
+        console.error(`[stdio-server] Loading Google Calendar tools...`);
+        const { registerGoogleCalendarTools } = await import("./servers/google-calendar/tools.js");
+        mcpServer = new McpServer({
+          name: "google-calendar",
+          version: "1.0.0",
+        });
+        registerGoogleCalendarTools(mcpServer);
+        console.error(`[stdio-server] Google Calendar tools registered successfully`);
+        break;
+      }
+
       case "n8n": {
         console.error(`[stdio-server] Loading n8n-mcp proxy...`);
         // Spawn n8n-mcp as a child process and proxy via MCP Client
@@ -139,7 +151,7 @@ async function main() {
 
       default:
         console.error(`Unknown server: ${SERVER_NAME}`);
-        console.error("Available servers: spotify, image-gen, soundcharts, ping, n8n");
+        console.error("Available servers: spotify, image-gen, soundcharts, google-calendar, ping, n8n");
         process.exit(1);
     }
 

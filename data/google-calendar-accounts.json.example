@@ -1,0 +1,11 @@
+{
+  "account-id": {
+    "displayName": "example@gmail.com",
+    "email": "example@gmail.com",
+    "accessToken": "ya29.XXXXXXXXXXXXXXXXXXXX",
+    "refreshToken": "1//XXXXXXXXXXXXXXXXXXXX",
+    "expiresAt": 1234567890000,
+    "scopes": "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email openid https://www.googleapis.com/auth/calendar.events",
+    "addedAt": "2026-01-01T00:00:00.000Z"
+  }
+}
