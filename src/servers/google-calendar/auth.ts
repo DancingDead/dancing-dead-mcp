@@ -1,5 +1,6 @@
 import type { Application } from "express";
-import { google } from "googleapis";
+import { calendar } from "@googleapis/calendar";
+import { OAuth2Client } from "google-auth-library";
 import { logger } from "../../config.js";
 import { getAccount, setAccount } from "./store.js";
 
@@ -33,7 +34,7 @@ export function getGoogleCalendarConfig() {
 export function generateAuthUrl(accountName: string): string {
     const { clientId, redirectUri } = getGoogleCalendarConfig();
 
-    const oauth2Client = new google.auth.OAuth2(clientId, "", redirectUri);
+    const oauth2Client = new OAuth2Client(clientId, "", redirectUri);
 
     const authUrl = oauth2Client.generateAuthUrl({
         access_type: "offline",
@@ -58,7 +59,7 @@ interface TokenResponse {
 export async function exchangeCodeForTokens(code: string): Promise<TokenResponse> {
     const { clientId, clientSecret, redirectUri } = getGoogleCalendarConfig();
 
-    const oauth2Client = new google.auth.OAuth2(
+    const oauth2Client = new OAuth2Client(
         clientId,
         clientSecret,
         redirectUri
@@ -93,7 +94,7 @@ export async function exchangeCodeForTokens(code: string): Promise<TokenResponse
 export async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
     const { clientId, clientSecret, redirectUri } = getGoogleCalendarConfig();
 
-    const oauth2Client = new google.auth.OAuth2(
+    const oauth2Client = new OAuth2Client(
         clientId,
         clientSecret,
         redirectUri
@@ -197,18 +198,27 @@ export function mountAuthRoutes(app: Application): void {
             // Exchange code for tokens
             const tokens = await exchangeCodeForTokens(code);
 
-            // Get user email from Google
+            // Get user email from Google using token info
             const { clientId, clientSecret, redirectUri } = getGoogleCalendarConfig();
-            const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+            const oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri);
             oauth2Client.setCredentials({
                 access_token: tokens.access_token,
             });
 
-            const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
-            const userInfo = await oauth2.userinfo.get();
+            // Fetch user info using the userinfo endpoint
+            const response = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+                headers: {
+                    Authorization: `Bearer ${tokens.access_token}`,
+                },
+            });
 
-            const email = userInfo.data.email || "unknown";
-            const displayName = userInfo.data.name || email;
+            if (!response.ok) {
+                throw new Error(`Failed to fetch user info: ${response.statusText}`);
+            }
+
+            const userInfo = await response.json() as { email?: string; name?: string };
+            const email = userInfo.email || "unknown";
+            const displayName = userInfo.name || email;
 
             // Save to store
             await setAccount(state, {

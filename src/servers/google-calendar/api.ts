@@ -1,4 +1,5 @@
-import { google, calendar_v3 } from "googleapis";
+import { calendar, calendar_v3 } from "@googleapis/calendar";
+import { OAuth2Client } from "google-auth-library";
 import { ensureValidToken } from "./auth.js";
 import { getGoogleCalendarConfig } from "./auth.js";
 import { logger } from "../../config.js";
@@ -9,7 +10,7 @@ async function getAuthenticatedClient(accountName: string) {
     const accessToken = await ensureValidToken(accountName);
     const { clientId, clientSecret, redirectUri } = getGoogleCalendarConfig();
 
-    const oauth2Client = new google.auth.OAuth2(
+    const oauth2Client = new OAuth2Client(
         clientId,
         clientSecret,
         redirectUri
@@ -19,7 +20,7 @@ async function getAuthenticatedClient(accountName: string) {
         access_token: accessToken,
     });
 
-    return google.calendar({ version: "v3", auth: oauth2Client });
+    return calendar({ version: "v3", auth: oauth2Client });
 }
 
 // ── Calendar API Operations ─────────────────────────
