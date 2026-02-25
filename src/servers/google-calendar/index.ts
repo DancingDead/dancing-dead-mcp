@@ -25,7 +25,7 @@ export function createGoogleCalendarServer(app: Application): McpServerEntry {
 
     return {
         name: "google-calendar",
-        description: "Google Calendar - create, list, update, and delete events",
+        description: "Google Calendar & Tasks - manage events and tasks",
         version: "1.0.0",
         enabled: true,
         server: defaultServer.server,

@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as api from "./api.js";
+import * as tasksApi from "./tasks-api.js";
 import { listAccounts, resolveAccountName } from "./store.js";
 import { generateAuthUrl } from "./auth.js";
 import { logger } from "../../config.js";
@@ -338,4 +339,371 @@ ID: ${event.id || "No ID"}`;
             }
         }
     );
+
+    // Tool: google-tasks-list-task-lists
+    server.tool(
+        "google-tasks-list-task-lists",
+        "List all task lists from Google Tasks",
+        {
+            account: accountParam,
+        },
+        async (args) => {
+            try {
+                const accountName = await resolveAccountName(args.account);
+                const taskLists = await tasksApi.listTaskLists(accountName);
+
+                if (taskLists.length === 0) {
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: "No task lists found.",
+                            },
+                        ],
+                    };
+                }
+
+                const list = taskLists
+                    .map((tl, i) => `${i + 1}. ${tl.title || "Untitled"}\n   ID: ${tl.id}`)
+                    .join("\n\n");
+
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Found ${taskLists.length} task list(s):\n\n${list}`,
+                        },
+                    ],
+                };
+            } catch (error) {
+                logger.error("[google-tasks] list-task-lists error:", error);
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                        },
+                    ],
+                    isError: true,
+                };
+            }
+        }
+    );
+
+    // Tool: google-tasks-create-task-list
+    server.tool(
+        "google-tasks-create-task-list",
+        "Create a new task list in Google Tasks",
+        {
+            title: z.string().describe("Title of the new task list"),
+            account: accountParam,
+        },
+        async (args) => {
+            try {
+                const accountName = await resolveAccountName(args.account);
+                const taskList = await tasksApi.createTaskList(accountName, args.title);
+
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Task list created successfully!\n\nTitle: ${taskList.title}\nID: ${taskList.id}`,
+                        },
+                    ],
+                };
+            } catch (error) {
+                logger.error("[google-tasks] create-task-list error:", error);
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                        },
+                    ],
+                    isError: true,
+                };
+            }
+        }
+    );
+
+    // Tool: google-tasks-list-tasks
+    server.tool(
+        "google-tasks-list-tasks",
+        "List tasks from a Google Tasks list",
+        {
+            task_list_id: z.string().optional().describe("Task list ID (defaults to primary list '@default')"),
+            max_results: z.number().optional().describe("Maximum number of tasks to return (default: 100)"),
+            show_completed: z.boolean().optional().describe("Whether to show completed tasks (default: true)"),
+            due_min: z.string().optional().describe("Filter tasks due after this date (RFC 3339 format)"),
+            due_max: z.string().optional().describe("Filter tasks due before this date (RFC 3339 format)"),
+            account: accountParam,
+        },
+        async (args) => {
+            try {
+                const accountName = await resolveAccountName(args.account);
+                const tasks = await tasksApi.listTasks(accountName, {
+                    task_list_id: args.task_list_id,
+                    max_results: args.max_results,
+                    show_completed: args.show_completed,
+                    due_min: args.due_min,
+                    due_max: args.due_max,
+                });
+
+                if (tasks.length === 0) {
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: "No tasks found.",
+                            },
+                        ],
+                    };
+                }
+
+                const taskList = tasks
+                    .map((t, i) => {
+                        const status = t.status === "completed" ? "[x]" : "[ ]";
+                        const due = t.due ? `\n   Due: ${t.due}` : "";
+                        const notes = t.notes ? `\n   Notes: ${t.notes}` : "";
+                        return `${i + 1}. ${status} ${t.title || "No title"}${due}${notes}\n   ID: ${t.id}`;
+                    })
+                    .join("\n\n");
+
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Found ${tasks.length} task(s):\n\n${taskList}`,
+                        },
+                    ],
+                };
+            } catch (error) {
+                logger.error("[google-tasks] list-tasks error:", error);
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                        },
+                    ],
+                    isError: true,
+                };
+            }
+        }
+    );
+
+    // Tool: google-tasks-get-task
+    server.tool(
+        "google-tasks-get-task",
+        "Get details of a specific task from Google Tasks",
+        {
+            task_id: z.string().describe("The ID of the task to retrieve"),
+            task_list_id: z.string().optional().describe("Task list ID (defaults to '@default')"),
+            account: accountParam,
+        },
+        async (args) => {
+            try {
+                const accountName = await resolveAccountName(args.account);
+                const task = await tasksApi.getTask(accountName, args.task_list_id || "@default", args.task_id);
+
+                const details = `Task Details:
+                Title: ${task.title || "No title"}
+                Notes: ${task.notes || "No notes"}
+                Status: ${task.status || "Unknown"}
+                Due: ${task.due || "No due date"}
+                Completed: ${task.completed || "Not completed"}
+                Updated: ${task.updated || "Unknown"}
+                Link: ${task.webViewLink || "No link"}
+                ID: ${task.id || "No ID"}`;
+
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: details,
+                        },
+                    ],
+                };
+            } catch (error) {
+                logger.error("[google-tasks] get-task error:", error);
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                        },
+                    ],
+                    isError: true,
+                };
+            }
+        }
+    );
+
+    // Tool: google-tasks-create-task
+    server.tool(
+        "google-tasks-create-task",
+        "Create a new task in Google Tasks",
+        {
+            title: z.string().describe("Task title (max 1024 characters)"),
+            notes: z.string().optional().describe("Task notes/description (max 8192 characters)"),
+            due: z.string().optional().describe("Due date in RFC 3339 format (e.g., 2024-01-15T00:00:00Z). Only date part is used."),
+            task_list_id: z.string().optional().describe("Task list ID (defaults to '@default')"),
+            account: accountParam,
+        },
+        async (args) => {
+            try {
+                const accountName = await resolveAccountName(args.account);
+                const task = await tasksApi.createTask(accountName, {
+                    title: args.title,
+                    notes: args.notes,
+                    due: args.due,
+                    task_list_id: args.task_list_id,
+                });
+
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Task created successfully!\n\nTitle: ${task.title}\nID: ${task.id}${task.due ? `\nDue: ${task.due}` : ""}${task.webViewLink ? `\nLink: ${task.webViewLink}` : ""}`,
+                        },
+                    ],
+                };
+            } catch (error) {
+                logger.error("[google-tasks] create-task error:", error);
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                        },
+                    ],
+                    isError: true,
+                };
+            }
+        }
+    );
+
+    // Tool: google-tasks-update-task
+    server.tool(
+        "google-tasks-update-task",
+        "Update an existing task in Google Tasks",
+        {
+            task_id: z.string().describe("The ID of the task to update"),
+            title: z.string().optional().describe("New task title"),
+            notes: z.string().optional().describe("New task notes"),
+            due: z.string().optional().describe("New due date in RFC 3339 format"),
+            status: z.enum(["needsAction", "completed"]).optional().describe("New task status"),
+            task_list_id: z.string().optional().describe("Task list ID (defaults to '@default')"),
+            account: accountParam,
+        },
+        async (args) => {
+            try {
+                const accountName = await resolveAccountName(args.account);
+                const task = await tasksApi.updateTask(accountName, {
+                    task_id: args.task_id,
+                    title: args.title,
+                    notes: args.notes,
+                    due: args.due,
+                    status: args.status,
+                    task_list_id: args.task_list_id,
+                });
+
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Task updated successfully!\n\nTitle: ${task.title}\nStatus: ${task.status}\nID: ${task.id}`,
+                        },
+                    ],
+                };
+            } catch (error) {
+                logger.error("[google-tasks] update-task error:", error);
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                        },
+                    ],
+                    isError: true,
+                };
+            }
+        }
+    );
+
+    // Tool: google-tasks-delete-task
+    server.tool(
+        "google-tasks-delete-task",
+        "Delete a task from Google Tasks",
+        {
+            task_id: z.string().describe("The ID of the task to delete"),
+            task_list_id: z.string().optional().describe("Task list ID (defaults to '@default')"),
+            account: accountParam,
+        },
+        async (args) => {
+            try {
+                const accountName = await resolveAccountName(args.account);
+                const result = await tasksApi.deleteTask(accountName, args.task_list_id || "@default", args.task_id);
+
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: result,
+                        },
+                    ],
+                };
+            } catch (error) {
+                logger.error("[google-tasks] delete-task error:", error);
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                        },
+                    ],
+                    isError: true,
+                };
+            }
+        }
+    );
+
+    // Tool: google-tasks-complete-task
+    server.tool(
+        "google-tasks-complete-task",
+        "Mark a task as completed in Google Tasks",
+        {
+            task_id: z.string().describe("The ID of the task to complete"),
+            task_list_id: z.string().optional().describe("Task list ID (defaults to '@default')"),
+            account: accountParam,
+        },
+        async (args) => {
+            try {
+                const accountName = await resolveAccountName(args.account);
+                const task = await tasksApi.completeTask(accountName, args.task_list_id || "@default", args.task_id);
+
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Task completed!\n\nTitle: ${task.title}\nStatus: ${task.status}\nID: ${task.id}`,
+                        },
+                    ],
+                };
+            } catch (error) {
+                logger.error("[google-tasks] complete-task error:", error);
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                        },
+                    ],
+                    isError: true,
+                };
+            }
+        }
+    );
+
+
 }
