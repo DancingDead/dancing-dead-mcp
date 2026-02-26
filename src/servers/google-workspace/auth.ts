@@ -9,22 +9,36 @@ import { getAccount, setAccount } from "./store.js";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 
-export const GOOGLE_CALENDAR_SCOPES = [
+export const GOOGLE_WORKSPACE_SCOPES = [
+    // Calendar
     "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/calendar.events",
-    "https://www.googleapis.com/auth/tasks", // google tasks here
+    // Tasks
+    "https://www.googleapis.com/auth/tasks",
+    // Drive
+    "https://www.googleapis.com/auth/drive",
+    // Sheets
+    "https://www.googleapis.com/auth/spreadsheets",
+    // Docs
+    "https://www.googleapis.com/auth/documents.readonly",
+    // Gmail
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.send",
+    // Slides
+    "https://www.googleapis.com/auth/presentations.readonly",
+    // User info
     "https://www.googleapis.com/auth/userinfo.email",
 ];
 
 // ── Config ───────────────────────────────────────────
 
-export function getGoogleCalendarConfig() {
-    const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || "http://127.0.0.1:3000/google-calendar/callback";
+export function getGoogleWorkspaceConfig() {
+    const clientId = process.env.GOOGLE_WORKSPACE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_WORKSPACE_CLIENT_SECRET;
+    const redirectUri = process.env.GOOGLE_WORKSPACE_REDIRECT_URI || "http://127.0.0.1:3000/google-workspace/callback";
 
     if (!clientId || !clientSecret) {
-        throw new Error("GOOGLE_CALENDAR_CLIENT_ID and GOOGLE_CALENDAR_CLIENT_SECRET must be set in .env");
+        throw new Error("GOOGLE_WORKSPACE_CLIENT_ID and GOOGLE_WORKSPACE_CLIENT_SECRET must be set in .env");
     }
 
     return { clientId, clientSecret, redirectUri };
@@ -33,13 +47,13 @@ export function getGoogleCalendarConfig() {
 // ── Generate authorization URL ─────────────────────
 
 export function generateAuthUrl(accountName: string): string {
-    const { clientId, redirectUri } = getGoogleCalendarConfig();
+    const { clientId, redirectUri } = getGoogleWorkspaceConfig();
 
     const oauth2Client = new OAuth2Client(clientId, "", redirectUri);
 
     const authUrl = oauth2Client.generateAuthUrl({
         access_type: "offline",
-        scope: GOOGLE_CALENDAR_SCOPES,
+        scope: GOOGLE_WORKSPACE_SCOPES,
         state: accountName,
         prompt: "consent", // Force to get refresh token
     });
@@ -58,7 +72,7 @@ interface TokenResponse {
 }
 
 export async function exchangeCodeForTokens(code: string): Promise<TokenResponse> {
-    const { clientId, clientSecret, redirectUri } = getGoogleCalendarConfig();
+    const { clientId, clientSecret, redirectUri } = getGoogleWorkspaceConfig();
 
     const oauth2Client = new OAuth2Client(
         clientId,
@@ -82,10 +96,10 @@ export async function exchangeCodeForTokens(code: string): Promise<TokenResponse
             refresh_token: tokens.refresh_token,
             expires_in: tokens.expiry_date ? Math.floor((tokens.expiry_date - Date.now()) / 1000) : 3600,
             token_type: tokens.token_type || "Bearer",
-            scope: tokens.scope || GOOGLE_CALENDAR_SCOPES.join(" "),
+            scope: tokens.scope || GOOGLE_WORKSPACE_SCOPES.join(" "),
         };
     } catch (error) {
-        logger.error("[google-calendar] Token exchange failed:", error);
+        logger.error("[google-workspace] Token exchange failed:", error);
         throw new Error(`Google token exchange failed: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -93,7 +107,7 @@ export async function exchangeCodeForTokens(code: string): Promise<TokenResponse
 // ── Refresh expired token ───────────────────────────
 
 export async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
-    const { clientId, clientSecret, redirectUri } = getGoogleCalendarConfig();
+    const { clientId, clientSecret, redirectUri } = getGoogleWorkspaceConfig();
 
     const oauth2Client = new OAuth2Client(
         clientId,
@@ -117,10 +131,10 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
             refresh_token: credentials.refresh_token || refreshToken,
             expires_in: credentials.expiry_date ? Math.floor((credentials.expiry_date - Date.now()) / 1000) : 3600,
             token_type: credentials.token_type || "Bearer",
-            scope: credentials.scope || GOOGLE_CALENDAR_SCOPES.join(" "),
+            scope: credentials.scope || GOOGLE_WORKSPACE_SCOPES.join(" "),
         };
     } catch (error) {
-        logger.error("[google-calendar] Token refresh failed:", error);
+        logger.error("[google-workspace] Token refresh failed:", error);
         throw new Error(`Token refresh failed: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -173,7 +187,7 @@ export async function ensureValidToken(accountName: string): Promise<string> {
 // ── OAuth callback route ─────────────────────────────
 
 export function mountAuthRoutes(app: Application): void {
-    app.get("/google-calendar/callback", async (req, res) => {
+    app.get("/google-workspace/callback", async (req, res) => {
         const code = req.query.code as string | undefined;
         const state = req.query.state as string | undefined;
         const error = req.query.error as string | undefined;
@@ -200,7 +214,7 @@ export function mountAuthRoutes(app: Application): void {
             const tokens = await exchangeCodeForTokens(code);
 
             // Get user email from Google using token info
-            const { clientId, clientSecret, redirectUri } = getGoogleCalendarConfig();
+            const { clientId, clientSecret, redirectUri } = getGoogleWorkspaceConfig();
             const oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri);
             oauth2Client.setCredentials({
                 access_token: tokens.access_token,
@@ -232,7 +246,7 @@ export function mountAuthRoutes(app: Application): void {
                 addedAt: new Date().toISOString(),
             });
 
-            logger.info(`Google Calendar account "${state}" connected as ${email}`);
+            logger.info(`Google Workspace account "${state}" connected as ${email}`);
 
             res.send(`
                 <h1>Account connected!</h1>

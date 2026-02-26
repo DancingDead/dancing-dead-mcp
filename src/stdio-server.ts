@@ -22,7 +22,7 @@ const SERVER_NAME = process.argv[2];
 
 if (!SERVER_NAME) {
   console.error("Usage: stdio-server <server-name>");
-  console.error("Available servers: spotify, image-gen, soundcharts, google-calendar, ping, n8n");
+  console.error("Available servers: spotify, image-gen, soundcharts, google-workspace, ping, n8n");
   process.exit(1);
 }
 
@@ -84,15 +84,15 @@ async function main() {
         break;
       }
 
-      case "google-calendar": {
-        console.error(`[stdio-server] Loading Google Calendar tools...`);
-        const { registerGoogleCalendarTools } = await import("./servers/google-calendar/tools.js");
+      case "google-workspace": {
+        console.error(`[stdio-server] Loading Google Workspace tools...`);
+        const { registerGoogleWorkspaceTools } = await import("./servers/google-workspace/tools.js");
         mcpServer = new McpServer({
-          name: "google-calendar",
+          name: "google-workspace",
           version: "1.0.0",
         });
-        registerGoogleCalendarTools(mcpServer);
-        console.error(`[stdio-server] Google Calendar tools registered successfully`);
+        registerGoogleWorkspaceTools(mcpServer);
+        console.error(`[stdio-server] Google Workspace tools registered successfully`);
         break;
       }
 
@@ -151,7 +151,7 @@ async function main() {
 
       default:
         console.error(`Unknown server: ${SERVER_NAME}`);
-        console.error("Available servers: spotify, image-gen, soundcharts, google-calendar, ping, n8n");
+        console.error("Available servers: spotify, image-gen, soundcharts, google-workspace, ping, n8n");
         process.exit(1);
     }
 

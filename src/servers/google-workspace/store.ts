@@ -5,7 +5,7 @@ import { logger } from "../../config.js";
 
 // ── Types ────────────────────────────────────────────
 
-export interface GoogleCalendarAccount {
+export interface GoogleWorkspaceAccount {
     displayName: string;
     email: string;
     accessToken: string;
@@ -15,8 +15,8 @@ export interface GoogleCalendarAccount {
     addedAt: string;         // ISO date
 }
 
-export interface GoogleCalendarAccountStore {
-    [accountName: string]: GoogleCalendarAccount;
+export interface GoogleWorkspaceAccountStore {
+    [accountName: string]: GoogleWorkspaceAccount;
 }
 
 // ── File path ────────────────────────────────────────
@@ -27,37 +27,37 @@ const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, "..", "..", "..");
 
 const DATA_DIR = join(PROJECT_ROOT, "data");
-const STORE_PATH = join(DATA_DIR, "google-calendar-accounts.json");
+const STORE_PATH = join(DATA_DIR, "google-workspace-accounts.json");
 const STORE_TMP = STORE_PATH + ".tmp";
 
 // ── Functions ────────────────────────────────────────
 
-export async function loadStore(): Promise<GoogleCalendarAccountStore> {
+export async function loadStore(): Promise<GoogleWorkspaceAccountStore> {
     try {
         const raw = await readFile(STORE_PATH, "utf-8");
-        return JSON.parse(raw) as GoogleCalendarAccountStore;
+        return JSON.parse(raw) as GoogleWorkspaceAccountStore;
     } catch (err: unknown) {
         const error = err as NodeJS.ErrnoException;
         if (error.code === "ENOENT") {
             return {};
         }
-        logger.warn("Failed to parse google-calendar store, starting fresh");
+        logger.warn("Failed to parse google-workspace store, starting fresh");
         return {};
     }
 }
 
-export async function saveStore(store: GoogleCalendarAccountStore): Promise<void> {
+export async function saveStore(store: GoogleWorkspaceAccountStore): Promise<void> {
     await mkdir(DATA_DIR, { recursive: true });
     await writeFile(STORE_TMP, JSON.stringify(store, null, 2), "utf-8");
     await rename(STORE_TMP, STORE_PATH);
 }
 
-export async function getAccount(name: string): Promise<GoogleCalendarAccount | undefined> {
+export async function getAccount(name: string): Promise<GoogleWorkspaceAccount | undefined> {
     const store = await loadStore();
     return store[name];
 }
 
-export async function setAccount(name: string, account: GoogleCalendarAccount): Promise<void> {
+export async function setAccount(name: string, account: GoogleWorkspaceAccount): Promise<void> {
     const store = await loadStore();
     store[name] = account;
     await saveStore(store);
@@ -79,7 +79,7 @@ export async function resolveAccountName(requested: string | undefined): Promise
     const names = Object.keys(store);
 
     if (names.length === 0) {
-        throw new Error("No Google Calendar accounts connected. Use google-calendar-auth to connect one.");
+        throw new Error("No Google Workspace accounts connected. Use google-workspace-auth to connect one.");
     }
 
     if (requested) {

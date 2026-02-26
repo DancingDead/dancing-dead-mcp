@@ -1,14 +1,14 @@
 import { calendar, calendar_v3 } from "@googleapis/calendar";
 import { OAuth2Client } from "google-auth-library";
 import { ensureValidToken } from "./auth.js";
-import { getGoogleCalendarConfig } from "./auth.js";
+import { getGoogleWorkspaceConfig } from "./auth.js";
 import { logger } from "../../config.js";
 
 // ── Create authenticated Calendar client ────────────
 
 async function getAuthenticatedClient(accountName: string) {
     const accessToken = await ensureValidToken(accountName);
-    const { clientId, clientSecret, redirectUri } = getGoogleCalendarConfig();
+    const { clientId, clientSecret, redirectUri } = getGoogleWorkspaceConfig();
 
     const oauth2Client = new OAuth2Client(
         clientId,
@@ -72,7 +72,7 @@ export async function createEvent(
 
         return eventLink;
     } catch (error) {
-        logger.error("[google-calendar] Failed to create event:", error);
+        logger.error("[google-workspace] Failed to create event:", error);
         throw new Error(`Failed to create event: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -105,7 +105,7 @@ export async function listEvents(
 
         return response.data.items || [];
     } catch (error) {
-        logger.error("[google-calendar] Failed to list events:", error);
+        logger.error("[google-workspace] Failed to list events:", error);
         throw new Error(`Failed to list events: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -126,7 +126,7 @@ export async function getEvent(
 
         return response.data;
     } catch (error) {
-        logger.error("[google-calendar] Failed to get event:", error);
+        logger.error("[google-workspace] Failed to get event:", error);
         throw new Error(`Failed to get event: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -190,7 +190,7 @@ export async function updateEvent(
 
         return eventLink;
     } catch (error) {
-        logger.error("[google-calendar] Failed to update event:", error);
+        logger.error("[google-workspace] Failed to update event:", error);
         throw new Error(`Failed to update event: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -212,7 +212,7 @@ export async function deleteEvent(
         logger.info(`[google-calendar] Event deleted: ${eventId}`);
         return `Event ${eventId} deleted successfully`;
     } catch (error) {
-        logger.error("[google-calendar] Failed to delete event:", error);
+        logger.error("[google-workspace] Failed to delete event:", error);
         throw new Error(`Failed to delete event: ${error instanceof Error ? error.message : String(error)}`);
     }
 }

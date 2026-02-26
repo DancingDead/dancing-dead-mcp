@@ -10,7 +10,7 @@ import { createSpotifyServer } from "./servers/spotify/index.js";
 import { createImageGenServer } from "./servers/image-gen/index.js";
 import { createN8nServer } from "./servers/n8n/index.js";
 import { createSoundchartsServer } from "./servers/soundcharts/index.js";
-import { createGoogleCalendarServer } from "./servers/google-calendar/index.js";
+import { createGoogleWorkspaceServer } from "./servers/google-workspace/index.js";
 import { config, logger } from "./config.js";
 import type {
   McpServerEntry,
@@ -41,6 +41,10 @@ app.use(express.json());
 
 app.use((req, _res, next) => {
   logger.debug(`${req.method} ${req.path}`);
+  // Temporary: log all headers on MCP routes to check if Claude sends user identity
+  if (req.path.endsWith("/mcp")) {
+    logger.info(`[DEBUG HEADERS] ${req.method} ${req.path}\n${JSON.stringify(req.headers, null, 2)}`);
+  }
   next();
 });
 
@@ -307,8 +311,8 @@ registerMcpServer(imageGenEntry);
 const soundchartsEntry = createSoundchartsServer();
 registerMcpServer(soundchartsEntry);
 
-const googleCalendarEntry = createGoogleCalendarServer(app);
-registerMcpServer(googleCalendarEntry);
+const googleWorkspaceEntry = createGoogleWorkspaceServer(app);
+registerMcpServer(googleWorkspaceEntry);
 
 // n8n: async initialization (non-blocking — server starts while n8n-mcp subprocess warms up)
 createN8nServer()
@@ -333,7 +337,7 @@ app.listen(config.port, () => {
   logger.info(`  Spotify     : /spotify/mcp`);
   logger.info(`  Image-gen   : /image-gen/mcp`);
   logger.info(`  Soundcharts : /soundcharts/mcp`);
-  logger.info(`  Google Cal  : /google-calendar/mcp`);
+  logger.info(`  Workspace   : /google-workspace/mcp`);
   logger.info(`  n8n         : /n8n/mcp`);
   logger.info("================================================");
 });

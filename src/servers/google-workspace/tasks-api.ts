@@ -1,14 +1,14 @@
 import { tasks, tasks_v1 } from "@googleapis/tasks";
 import { OAuth2Client } from "google-auth-library";
 import { ensureValidToken } from "./auth.js";
-import { getGoogleCalendarConfig } from "./auth.js";
+import { getGoogleWorkspaceConfig } from "./auth.js";
 import { logger } from "../../config.js";
 
 // ── Create authenticated Tasks client ────────────
 
 async function getAuthenticatedTasksClient(accountName: string) {
     const accessToken = await ensureValidToken(accountName);
-    const { clientId, clientSecret, redirectUri } = getGoogleCalendarConfig();
+    const { clientId, clientSecret, redirectUri } = getGoogleWorkspaceConfig();
 
     const oauth2Client = new OAuth2Client(
         clientId,

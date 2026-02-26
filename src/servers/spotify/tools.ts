@@ -10,6 +10,7 @@ import {
     spotifyPutImage,
     formatError,
 } from "./api.js";
+import { withAcl, identifySession, getSessionInfo, listKnownUsers } from "./acl.js";
 
 // ── Utilitaire ───────────────────────────────────────
 
@@ -40,9 +41,9 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
 
     mcpServer.tool(
         "spotify-auth",
-        "Generate an authorization URL to connect a Spotify account",
+        "Generate an authorization URL to connect a Spotify account (requires admin role)",
         { account_name: z.string().describe("Friendly name, e.g. 'dancing-dead', 'den-haku'") },
-        async ({ account_name }) => {
+        withAcl("spotify-auth", async ({ account_name }, _extra) => {
             try {
                 // Start temporary OAuth server for stdio mode
                 const { startTemporaryOAuthServer } = await import("./oauth-server.js");
@@ -70,7 +71,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
@@ -97,9 +98,9 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
 
     mcpServer.tool(
         "spotify-remove-account",
-        "Disconnect a Spotify account",
+        "Disconnect a Spotify account (requires admin role)",
         { account_name: z.string().describe("Name of the account to remove") },
-        async ({ account_name }) => {
+        withAcl("spotify-remove-account", async ({ account_name }, _extra) => {
             try {
                 await removeAccount(account_name);
                 return {
@@ -111,7 +112,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
@@ -132,6 +133,118 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                 };
             }
         }
+    );
+
+    // ═══════════════════════════════════════════════════
+    // SESSION IDENTIFICATION (ACL)
+    // ═══════════════════════════════════════════════════
+
+    mcpServer.tool(
+        "spotify-identify",
+        "IMPORTANT: You MUST call this tool AUTOMATICALLY at the very start of the session, " +
+        "BEFORE calling any other Spotify tool. Do NOT ask the user for their name — " +
+        "infer it from the conversation context (the user's first name, how they sign messages, " +
+        "or any contextual clue). If you cannot determine the name, call this tool with " +
+        "username 'unknown' to get the list of valid usernames, then ask the user to pick one. " +
+        "This is required to unlock permissions beyond read-only access.",
+        {
+            username: z.string().describe(
+                "The user's first name in lowercase (e.g. 'theo', 'alex'). " +
+                "Infer from conversation context. Use 'unknown' to get the list of valid usernames."
+            ),
+        },
+        async ({ username }, extra) => {
+            const sessionId = extra.sessionId;
+            if (!sessionId) {
+                return {
+                    content: [{
+                        type: "text" as const,
+                        text: "Identification skipped: no session ID (stdio mode — you already have admin access).",
+                    }],
+                };
+            }
+
+            // If username is 'unknown', return the list of known users
+            if (username === "unknown") {
+                const knownUsers = await listKnownUsers();
+                if (knownUsers.length === 0) {
+                    return {
+                        content: [{
+                            type: "text" as const,
+                            text: "No ACL configuration found. Everyone has viewer (read-only) access.",
+                        }],
+                    };
+                }
+                return {
+                    content: [{
+                        type: "text" as const,
+                        text: `Please identify yourself. Known usernames: ${knownUsers.join(", ")}.\n` +
+                              `Call spotify-identify again with your username.`,
+                    }],
+                };
+            }
+
+            const result = await identifySession(sessionId, username);
+
+            if (result.success) {
+                return {
+                    content: [{
+                        type: "text" as const,
+                        text: `Identified as "${username}" with role: ${result.role}.\n` +
+                              `You now have ${result.role} permissions for this session.`,
+                    }],
+                };
+            }
+
+            // On failure, suggest valid usernames
+            const knownUsers = await listKnownUsers();
+            return {
+                content: [{
+                    type: "text" as const,
+                    text: `Identification failed: ${result.error}\n` +
+                          `Valid usernames: ${knownUsers.join(", ")}.\n` +
+                          `Ask the user which name to use, then call spotify-identify again.`,
+                }],
+                isError: true,
+            };
+        },
+    );
+
+    mcpServer.tool(
+        "spotify-session-info",
+        "Check your current session identity and permission level",
+        {},
+        async (_args, extra) => {
+            const sessionId = extra.sessionId;
+            if (!sessionId) {
+                return {
+                    content: [{
+                        type: "text" as const,
+                        text: "Mode: stdio (local) — admin access by default.",
+                    }],
+                };
+            }
+
+            const info = getSessionInfo(sessionId);
+            if (!info) {
+                return {
+                    content: [{
+                        type: "text" as const,
+                        text: "Not identified. Current role: viewer (read-only).\n" +
+                              "Use spotify-identify to authenticate and unlock more permissions.",
+                    }],
+                };
+            }
+
+            return {
+                content: [{
+                    type: "text" as const,
+                    text: `Session identified as: ${info.displayName} (${info.username})\n` +
+                          `Role: ${info.role}\n` +
+                          `Identified at: ${new Date(info.identifiedAt).toISOString()}`,
+                }],
+            };
+        },
     );
 
     // ═══════════════════════════════════════════════════
@@ -366,7 +479,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
 
     mcpServer.tool(
         "spotify-create-playlist",
-        "Create a new playlist",
+        "Create a new playlist (requires editor role)",
         {
             name: z.string().describe("Playlist name"),
             description: z.string().optional(),
@@ -374,7 +487,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
             collaborative: z.boolean().default(false).optional(),
             account: accountParam,
         },
-        async ({ name: playlistName, description, public: isPublic, collaborative, account }) => {
+        withAcl("spotify-create-playlist", async ({ name: playlistName, description, public: isPublic, collaborative, account }, _extra) => {
             try {
                 const accName = await resolveAccountName(account);
                 const profile = await spotifyGet<{ id: string }>(accName, "/me");
@@ -393,12 +506,12 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
         "spotify-update-playlist",
-        "Change a playlist's name, description, or visibility",
+        "Change a playlist's name, description, or visibility (requires editor role)",
         {
             playlist_id: z.string(),
             name: z.string().optional(),
@@ -406,7 +519,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
             public: z.boolean().optional(),
             account: accountParam,
         },
-        async ({ playlist_id, name: newName, description, public: isPublic, account }) => {
+        withAcl("spotify-update-playlist", async ({ playlist_id, name: newName, description, public: isPublic, account }, _extra) => {
             try {
                 const accName = await resolveAccountName(account);
                 const id = extractSpotifyId(playlist_id);
@@ -424,19 +537,19 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
         "spotify-add-to-playlist",
-        "Add tracks to a playlist",
+        "Add tracks to a playlist (requires editor role)",
         {
             playlist_id: z.string(),
             uris: z.array(z.string()).describe("Array of Spotify track URIs (spotify:track:xxx)"),
             position: z.number().optional().describe("Position to insert at (0-indexed). Omit to append."),
             account: accountParam,
         },
-        async ({ playlist_id, uris, position, account }) => {
+        withAcl("spotify-add-to-playlist", async ({ playlist_id, uris, position, account }, _extra) => {
             try {
                 const accName = await resolveAccountName(account);
                 const id = extractSpotifyId(playlist_id);
@@ -452,22 +565,21 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
         "spotify-remove-from-playlist",
-        "Remove tracks from a playlist",
+        "Remove tracks from a playlist (requires editor role)",
         {
             playlist_id: z.string(),
             uris: z.array(z.string()).describe("Array of Spotify track URIs to remove"),
             account: accountParam,
         },
-        async ({ playlist_id, uris, account }) => {
+        withAcl("spotify-remove-from-playlist", async ({ playlist_id, uris, account }, _extra) => {
             try {
                 const accName = await resolveAccountName(account);
                 const id = extractSpotifyId(playlist_id);
-                // DELETE /items uses "items" field with array of objects: { items: [{ uri: "..." }] }
                 const result = await spotifyDelete(accName, `/playlists/${id}/items`, {
                     items: uris.map((uri) => ({ uri })),
                 });
@@ -480,12 +592,12 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
         "spotify-reorder-playlist",
-        "Reorder tracks within a playlist",
+        "Reorder tracks within a playlist (requires editor role)",
         {
             playlist_id: z.string(),
             range_start: z.number().describe("Position of the first item to move"),
@@ -493,7 +605,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
             insert_before: z.number().describe("Position to insert before"),
             account: accountParam,
         },
-        async ({ playlist_id, range_start, range_length, insert_before, account }) => {
+        withAcl("spotify-reorder-playlist", async ({ playlist_id, range_start, range_length, insert_before, account }, _extra) => {
             try {
                 const accName = await resolveAccountName(account);
                 const id = extractSpotifyId(playlist_id);
@@ -511,18 +623,18 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
         "spotify-update-playlist-cover",
-        "Upload a custom cover image for a playlist (base64 JPEG, max 256KB)",
+        "Upload a custom cover image for a playlist (requires editor role)",
         {
             playlist_id: z.string(),
             image_base64: z.string().describe("Base64-encoded JPEG image"),
             account: accountParam,
         },
-        async ({ playlist_id, image_base64, account }) => {
+        withAcl("spotify-update-playlist-cover", async ({ playlist_id, image_base64, account }, _extra) => {
             try {
                 const accName = await resolveAccountName(account);
                 const id = extractSpotifyId(playlist_id);
@@ -536,7 +648,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     // ═══════════════════════════════════════════════════
@@ -591,7 +703,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
 
     mcpServer.tool(
         "spotify-play",
-        "Start or resume playback",
+        "Start or resume playback (requires admin role)",
         {
             context_uri: z.string().optional().describe("URI of context to play (album, playlist, artist)"),
             uris: z.array(z.string()).optional().describe("Array of track URIs to play"),
@@ -599,7 +711,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
             device_id: z.string().optional(),
             account: accountParam,
         },
-        async ({ context_uri, uris, offset, device_id, account }) => {
+        withAcl("spotify-play", async ({ context_uri, uris, offset, device_id, account }, _extra) => {
             try {
                 const name = await resolveAccountName(account);
                 const body: Record<string, unknown> = {};
@@ -619,14 +731,14 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
         "spotify-pause",
-        "Pause playback",
+        "Pause playback (requires admin role)",
         { device_id: z.string().optional(), account: accountParam },
-        async ({ device_id, account }) => {
+        withAcl("spotify-pause", async ({ device_id, account }, _extra) => {
             try {
                 const name = await resolveAccountName(account);
                 const params = device_id ? `?device_id=${device_id}` : "";
@@ -638,14 +750,14 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
         "spotify-next",
-        "Skip to next track",
+        "Skip to next track (requires admin role)",
         { device_id: z.string().optional(), account: accountParam },
-        async ({ device_id, account }) => {
+        withAcl("spotify-next", async ({ device_id, account }, _extra) => {
             try {
                 const name = await resolveAccountName(account);
                 const params = device_id ? `?device_id=${device_id}` : "";
@@ -657,14 +769,14 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
         "spotify-previous",
-        "Skip to previous track",
+        "Skip to previous track (requires admin role)",
         { device_id: z.string().optional(), account: accountParam },
-        async ({ device_id, account }) => {
+        withAcl("spotify-previous", async ({ device_id, account }, _extra) => {
             try {
                 const name = await resolveAccountName(account);
                 const params = device_id ? `?device_id=${device_id}` : "";
@@ -676,18 +788,18 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
         "spotify-set-volume",
-        "Set playback volume (Premium required)",
+        "Set playback volume (requires admin role)",
         {
             volume_percent: z.number().min(0).max(100),
             device_id: z.string().optional(),
             account: accountParam,
         },
-        async ({ volume_percent, device_id, account }) => {
+        withAcl("spotify-set-volume", async ({ volume_percent, device_id, account }, _extra) => {
             try {
                 const name = await resolveAccountName(account);
                 const params: Record<string, string> = { volume_percent: String(volume_percent) };
@@ -700,7 +812,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
@@ -749,13 +861,13 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
 
     mcpServer.tool(
         "spotify-add-to-queue",
-        "Add a track to the playback queue",
+        "Add a track to the playback queue (requires admin role)",
         {
             uri: z.string().describe("Spotify track URI"),
             device_id: z.string().optional(),
             account: accountParam,
         },
-        async ({ uri, device_id, account }) => {
+        withAcl("spotify-add-to-queue", async ({ uri, device_id, account }, _extra) => {
             try {
                 const name = await resolveAccountName(account);
                 const params: Record<string, string> = { uri };
@@ -768,7 +880,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     // ═══════════════════════════════════════════════════
@@ -804,12 +916,12 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
 
     mcpServer.tool(
         "spotify-save-tracks",
-        "Save tracks to the user's library (like)",
+        "Save tracks to the user's library (requires editor role)",
         {
             ids: z.array(z.string()).describe("Array of Spotify track IDs"),
             account: accountParam,
         },
-        async ({ ids, account }) => {
+        withAcl("spotify-save-tracks", async ({ ids, account }, _extra) => {
             try {
                 const name = await resolveAccountName(account);
                 await spotifyPut(name, `/me/tracks?ids=${ids.join(",")}`);
@@ -820,17 +932,17 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     mcpServer.tool(
         "spotify-remove-saved-tracks",
-        "Remove tracks from the user's library (unlike)",
+        "Remove tracks from the user's library (requires editor role)",
         {
             ids: z.array(z.string()).describe("Array of Spotify track IDs"),
             account: accountParam,
         },
-        async ({ ids, account }) => {
+        withAcl("spotify-remove-saved-tracks", async ({ ids, account }, _extra) => {
             try {
                 const name = await resolveAccountName(account);
                 await spotifyDelete(name, `/me/tracks?ids=${ids.join(",")}`);
@@ -841,7 +953,7 @@ export function registerSpotifyTools(mcpServer: McpServer): void {
                     isError: true,
                 };
             }
-        }
+        }),
     );
 
     // ═══════════════════════════════════════════════════
