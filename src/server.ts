@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { execSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { appendFile } from "node:fs/promises";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createSpotifyServer } from "./servers/spotify/index.js";
@@ -44,7 +45,12 @@ app.use((req, _res, next) => {
   logger.debug(`${req.method} ${req.path}`);
   // Temporary: log all headers on MCP routes to check if Claude sends user identity
   if (req.path.endsWith("/mcp")) {
-    logger.info(`[DEBUG HEADERS] ${req.method} ${req.path}\n${JSON.stringify(req.headers, null, 2)}`);
+    const headerDump = `\n=== ${new Date().toISOString()} ===\n${req.method} ${req.path}\n${JSON.stringify(req.headers, null, 2)}\n`;
+    logger.info(`[DEBUG HEADERS]${headerDump}`);
+    // Also write to file for easy retrieval on o2switch
+    const __dir = dirname(fileURLToPath(import.meta.url));
+    const logFile = resolve(__dir, "..", "data", "debug-headers.log");
+    appendFile(logFile, headerDump).catch(() => {});
   }
   next();
 });
