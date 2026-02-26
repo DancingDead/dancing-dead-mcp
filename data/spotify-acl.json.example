@@ -1,0 +1,17 @@
+{
+  "users": {
+    "theo": {
+      "displayName": "Theo",
+      "role": "admin"
+    },
+    "alex": {
+      "displayName": "Alex (Playlist Manager)",
+      "role": "editor"
+    },
+    "marie": {
+      "displayName": "Marie (Marketing)",
+      "role": "viewer"
+    }
+  },
+  "defaultRole": "viewer"
+}

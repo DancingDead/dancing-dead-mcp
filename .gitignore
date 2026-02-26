@@ -8,6 +8,7 @@ tmp/restart.txt
 # OAuth tokens et données sensibles
 data/google-calendar-accounts.json
 data/spotify-accounts.json
+data/spotify-acl.json
 
 # Deployment files
 deploy.sh
