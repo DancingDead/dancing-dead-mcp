@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node --no-experimental-fetch dist/server.js",
+    "start": "node --no-experimental-fetch dist/bootstrap.js",
     "clean": "rm -rf dist"
   },
   "dependencies": {
