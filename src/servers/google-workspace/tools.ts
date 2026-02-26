@@ -7,7 +7,7 @@ import * as sheetsApi from "./sheets-api.js";
 import * as docsApi from "./docs-api.js";
 import * as gmailApi from "./gmail-api.js";
 import * as slidesApi from "./slides-api.js";
-import { resolveAccountWithAcl, listAccountsWithAcl } from "./acl.js";
+import { resolveAccountWithAcl, listAccountsWithAcl, identifySession, getSessionPermissions, listKnownUsers } from "./acl.js";
 import { generateAuthUrl } from "./auth.js";
 import { logger } from "../../config.js";
 
@@ -344,6 +344,122 @@ ID: ${event.id || "No ID"}`;
             }
         }
     );
+
+    // ═══════════════════════════════════════════════════
+    // SESSION IDENTIFICATION (ACL)
+    // ═══════════════════════════════════════════════════
+
+    server.tool(
+        "google-workspace-identify",
+        "IMPORTANT: You MUST call this tool AUTOMATICALLY at the very start of the session, " +
+        "BEFORE calling any other Google Workspace tool. Do NOT ask the user for their name — " +
+        "infer it from the conversation context (the user's first name, how they sign messages, " +
+        "or any contextual clue). If you cannot determine the name, call this tool with " +
+        "username 'unknown' to get the list of valid usernames, then ask the user to pick one. " +
+        "This identifies who you are and restricts which Google accounts you can access.",
+        {
+            username: z.string().describe(
+                "The user's first name in lowercase (e.g. 'theo', 'alex'). " +
+                "Infer from conversation context. Use 'unknown' to get the list of valid usernames."
+            ),
+        },
+        async ({ username }, extra) => {
+            const sessionId = extra.sessionId;
+            if (!sessionId) {
+                return {
+                    content: [{
+                        type: "text" as const,
+                        text: "Identification skipped: no session ID (stdio mode — unrestricted access).",
+                    }],
+                };
+            }
+
+            // If username is 'unknown', return the list of known users
+            if (username === "unknown") {
+                const knownUsers = await listKnownUsers();
+                if (knownUsers.length === 0) {
+                    return {
+                        content: [{
+                            type: "text" as const,
+                            text: "No ACL configuration found. All accounts are accessible.",
+                        }],
+                    };
+                }
+                return {
+                    content: [{
+                        type: "text" as const,
+                        text: `Please identify yourself. Known usernames: ${knownUsers.join(", ")}.\n` +
+                              `Call google-workspace-identify again with your username.`,
+                    }],
+                };
+            }
+
+            const result = await identifySession(sessionId, username);
+
+            if (result.success) {
+                return {
+                    content: [{
+                        type: "text" as const,
+                        text: `Identified as "${result.displayName}".\n` +
+                              `Authorized Google accounts: ${result.allowedAccounts!.join(", ")}`,
+                    }],
+                };
+            }
+
+            // On failure, suggest valid usernames
+            const knownUsers = await listKnownUsers();
+            return {
+                content: [{
+                    type: "text" as const,
+                    text: `Identification failed: ${result.error}\n` +
+                          `Valid usernames: ${knownUsers.join(", ")}.\n` +
+                          `Ask the user which name to use, then call google-workspace-identify again.`,
+                }],
+                isError: true,
+            };
+        },
+    );
+
+    server.tool(
+        "google-workspace-session-info",
+        "Check your current session identity and which Google accounts you can access",
+        {},
+        async (_args, extra) => {
+            const sessionId = extra.sessionId;
+            if (!sessionId) {
+                return {
+                    content: [{
+                        type: "text" as const,
+                        text: "Mode: stdio (local) — unrestricted access to all accounts.",
+                    }],
+                };
+            }
+
+            const permissions = getSessionPermissions(sessionId);
+            if (!permissions) {
+                return {
+                    content: [{
+                        type: "text" as const,
+                        text: "Not identified. All accounts are currently accessible.\n" +
+                              "Use google-workspace-identify to restrict to your authorized accounts.",
+                    }],
+                };
+            }
+
+            return {
+                content: [{
+                    type: "text" as const,
+                    text: `Session identified as: ${permissions.displayName} (${permissions.user})\n` +
+                          `Authorized accounts: ${permissions.allowedAccounts.join(", ")}\n` +
+                          `Identified at: ${new Date(permissions.authenticatedAt).toISOString()}`,
+                }],
+            };
+        },
+    );
+
+    // ═══════════════════════════════════════════════════
+    // GOOGLE TASKS
+    // ═══════════════════════════════════════════════════
 
     // Tool: google-tasks-list-task-lists
     server.tool(

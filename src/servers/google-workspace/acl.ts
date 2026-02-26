@@ -1,11 +1,17 @@
 /**
- * Google Workspace ACL — Per-user access control via API keys.
+ * Google Workspace ACL — Per-user access control.
  *
- * Each user connects with a unique API key in their MCP URL:
- *   https://mcp.dancingdeadrecords.com/google-workspace/mcp?key=abc123
+ * Two authentication methods:
  *
- * The server validates the key at session creation and restricts
- * which Google accounts are accessible for the lifetime of that session.
+ * 1. API key (HTTP level): user passes ?key=abc123 in the MCP URL.
+ *    The server validates at session creation and binds permissions.
+ *
+ * 2. In-band identification: user calls `google-workspace-identify`
+ *    with their username. Claude infers the name from context.
+ *    This is the primary method for Claude Team (shared connector).
+ *
+ * Both methods bind allowedAccounts to the MCP sessionId.
+ * Without identification, sessions have unrestricted access (backward compat).
  */
 
 import { readFile } from "node:fs/promises";
@@ -215,4 +221,49 @@ export async function listAccountsWithAcl(sessionId: string | undefined): Promis
     }
 
     return allNames.filter((name) => permissions.allowedAccounts.includes(name));
+}
+
+// ── In-band identification ──────────────────────────
+
+/**
+ * Return the list of known usernames from the keys config.
+ * Used by google-workspace-identify so Claude can auto-identify.
+ */
+export async function listKnownUsers(): Promise<string[]> {
+    const config = await loadKeysConfig();
+    if (!config) return [];
+    // Collect unique usernames from all key entries
+    const users = new Set<string>();
+    for (const entry of Object.values(config.keys)) {
+        users.add(entry.user);
+    }
+    return [...users];
+}
+
+/**
+ * Identify a session by username (in-band, without API key).
+ * Looks up the username in keys config and binds allowedAccounts to the session.
+ */
+export async function identifySession(
+    sessionId: string,
+    username: string,
+): Promise<{ success: boolean; displayName?: string; allowedAccounts?: string[]; error?: string }> {
+    const config = await loadKeysConfig();
+    if (!config) {
+        return { success: false, error: "ACL configuration file not found (data/google-workspace-keys.json)." };
+    }
+
+    // Find the first key entry matching this username
+    const entry = Object.values(config.keys).find((e) => e.user === username);
+    if (!entry) {
+        logger.warn(`[GW-ACL] Failed identify: unknown user "${username}" (session ${sessionId.slice(0, 8)}...)`);
+        return { success: false, error: `Unknown username "${username}".` };
+    }
+
+    setSessionPermissions(sessionId, entry.allowedAccounts, entry.user, entry.displayName);
+    return {
+        success: true,
+        displayName: entry.displayName,
+        allowedAccounts: entry.allowedAccounts,
+    };
 }
