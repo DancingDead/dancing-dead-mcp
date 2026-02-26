@@ -11,6 +11,7 @@ import { createImageGenServer } from "./servers/image-gen/index.js";
 import { createN8nServer } from "./servers/n8n/index.js";
 import { createSoundchartsServer } from "./servers/soundcharts/index.js";
 import { createGoogleWorkspaceServer } from "./servers/google-workspace/index.js";
+import { validateApiKey, setSessionPermissions, clearSessionPermissions } from "./servers/google-workspace/acl.js";
 import { config, logger } from "./config.js";
 import type {
   McpServerEntry,
@@ -123,6 +124,20 @@ async function handleStreamableRequest(
   }
 
   // No session ID — new initialization request
+
+  // ── API key validation (google-workspace only) ──
+  const apiKey = (req.query.key as string) || (req.headers["x-api-key"] as string) || undefined;
+  let apiKeyValidation: Awaited<ReturnType<typeof validateApiKey>> | undefined;
+
+  if (mcpName === "google-workspace" && apiKey) {
+    apiKeyValidation = await validateApiKey(apiKey);
+    if (!apiKeyValidation.valid) {
+      res.status(401).json({ error: "Invalid API key" });
+      return;
+    }
+    logger.info(`[GW-ACL] Valid API key for user "${apiKeyValidation.user}"`);
+  }
+
   // Create a fresh MCP server instance for this session
   const server = entry.createServer ? entry.createServer() : entry.server;
 
@@ -136,6 +151,7 @@ async function handleStreamableRequest(
     if (sid) {
       logger.info(`Streamable HTTP session closed: ${mcpName} (${sid})`);
       streamableSessions.delete(sid);
+      clearSessionPermissions(sid);
     }
   };
 
@@ -147,6 +163,16 @@ async function handleStreamableRequest(
   if (transport.sessionId) {
     streamableSessions.set(transport.sessionId, transport);
     logger.info(`Streamable HTTP session created: ${mcpName} (${transport.sessionId})`);
+
+    // Bind API key permissions to this MCP session
+    if (apiKeyValidation && apiKeyValidation.valid) {
+      setSessionPermissions(
+        transport.sessionId,
+        apiKeyValidation.allowedAccounts,
+        apiKeyValidation.user,
+        apiKeyValidation.displayName,
+      );
+    }
   }
 }
 

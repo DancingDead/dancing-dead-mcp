@@ -1,0 +1,19 @@
+{
+  "keys": {
+    "change-me-abc123": {
+      "user": "theo",
+      "displayName": "Theo",
+      "allowedAccounts": ["theo", "dancing-dead"]
+    },
+    "change-me-xyz789": {
+      "user": "alex",
+      "displayName": "Alex",
+      "allowedAccounts": ["alex", "dancing-dead"]
+    },
+    "change-me-def456": {
+      "user": "marie",
+      "displayName": "Marie",
+      "allowedAccounts": ["marie"]
+    }
+  }
+}

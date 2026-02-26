@@ -7,7 +7,7 @@ import * as sheetsApi from "./sheets-api.js";
 import * as docsApi from "./docs-api.js";
 import * as gmailApi from "./gmail-api.js";
 import * as slidesApi from "./slides-api.js";
-import { listAccounts, resolveAccountName } from "./store.js";
+import { resolveAccountWithAcl, listAccountsWithAcl } from "./acl.js";
 import { generateAuthUrl } from "./auth.js";
 import { logger } from "../../config.js";
 
@@ -34,9 +34,9 @@ export function registerGoogleWorkspaceTools(server: McpServer): void {
             timezone: z.string().optional().describe("Timezone (e.g., America/New_York, Europe/Paris). Defaults to UTC"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const eventLink = await api.createEvent(accountName, {
                     summary: args.summary,
                     description: args.description,
@@ -81,9 +81,9 @@ export function registerGoogleWorkspaceTools(server: McpServer): void {
             query: z.string().optional().describe("Search query to filter events"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const events = await api.listEvents(accountName, {
                     max_results: args.max_results,
                     time_min: args.time_min,
@@ -142,9 +142,9 @@ export function registerGoogleWorkspaceTools(server: McpServer): void {
             event_id: z.string().describe("The ID of the event to retrieve"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const event = await api.getEvent(accountName, args.event_id);
 
                 const details = `Event Details:
@@ -195,9 +195,9 @@ ID: ${event.id || "No ID"}`;
             timezone: z.string().optional().describe("Timezone for the new times"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const eventLink = await api.updateEvent(accountName, {
                     event_id: args.event_id,
                     summary: args.summary,
@@ -240,9 +240,9 @@ ID: ${event.id || "No ID"}`;
             event_id: z.string().describe("The ID of the event to delete"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await api.deleteEvent(accountName, args.event_id);
 
                 return {
@@ -275,7 +275,7 @@ ID: ${event.id || "No ID"}`;
         {
             account_name: z.string().describe("A name for this Google Workspace account (e.g., 'personal', 'work')"),
         },
-        async (args) => {
+        async (args, extra) => {
             try {
                 const authUrl = generateAuthUrl(args.account_name);
 
@@ -305,11 +305,11 @@ ID: ${event.id || "No ID"}`;
     // Tool: google-workspace-list-accounts
     server.tool(
         "google-workspace-list-accounts",
-        "List all connected Google Workspace accounts",
+        "List all connected Google Workspace accounts (filtered by your API key permissions)",
         {},
-        async () => {
+        async (_args, extra) => {
             try {
-                const accounts = await listAccounts();
+                const accounts = await listAccountsWithAcl(extra.sessionId);
 
                 if (accounts.length === 0) {
                     return {
@@ -352,9 +352,9 @@ ID: ${event.id || "No ID"}`;
         {
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const taskLists = await tasksApi.listTaskLists(accountName);
 
                 if (taskLists.length === 0) {
@@ -403,9 +403,9 @@ ID: ${event.id || "No ID"}`;
             title: z.string().describe("Title of the new task list"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const taskList = await tasksApi.createTaskList(accountName, args.title);
 
                 return {
@@ -443,9 +443,9 @@ ID: ${event.id || "No ID"}`;
             due_max: z.string().optional().describe("Filter tasks due before this date (RFC 3339 format)"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const tasks = await tasksApi.listTasks(accountName, {
                     task_list_id: args.task_list_id,
                     max_results: args.max_results,
@@ -506,9 +506,9 @@ ID: ${event.id || "No ID"}`;
             task_list_id: z.string().optional().describe("Task list ID (defaults to '@default')"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const task = await tasksApi.getTask(accountName, args.task_list_id || "@default", args.task_id);
 
                 const details = `Task Details:
@@ -555,9 +555,9 @@ ID: ${event.id || "No ID"}`;
             task_list_id: z.string().optional().describe("Task list ID (defaults to '@default')"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const task = await tasksApi.createTask(accountName, {
                     title: args.title,
                     notes: args.notes,
@@ -601,9 +601,9 @@ ID: ${event.id || "No ID"}`;
             task_list_id: z.string().optional().describe("Task list ID (defaults to '@default')"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const task = await tasksApi.updateTask(accountName, {
                     task_id: args.task_id,
                     title: args.title,
@@ -645,9 +645,9 @@ ID: ${event.id || "No ID"}`;
             task_list_id: z.string().optional().describe("Task list ID (defaults to '@default')"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await tasksApi.deleteTask(accountName, args.task_list_id || "@default", args.task_id);
 
                 return {
@@ -682,9 +682,9 @@ ID: ${event.id || "No ID"}`;
             task_list_id: z.string().optional().describe("Task list ID (defaults to '@default')"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const task = await tasksApi.completeTask(accountName, args.task_list_id || "@default", args.task_id);
 
                 return {
@@ -722,9 +722,9 @@ ID: ${event.id || "No ID"}`;
             page_token: z.string().optional().describe("Token for the next page of results"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await driveApi.searchFiles(accountName, {
                     query: args.query,
                     page_size: args.page_size,
@@ -763,9 +763,9 @@ ID: ${event.id || "No ID"}`;
             file_id: z.string().describe("The ID of the file to read"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await driveApi.readFile(accountName, args.file_id);
 
                 return {
@@ -794,9 +794,9 @@ ID: ${event.id || "No ID"}`;
             page_token: z.string().optional().describe("Token for the next page of results"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await driveApi.listFolderContents(accountName, {
                     folder_id: args.folder_id,
                     page_size: args.page_size,
@@ -839,9 +839,9 @@ ID: ${event.id || "No ID"}`;
             new_name: z.string().describe("New name for the file or folder"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await driveApi.renameFile(accountName, {
                     file_id: args.file_id,
                     new_name: args.new_name,
@@ -872,9 +872,9 @@ ID: ${event.id || "No ID"}`;
             destination_folder_id: z.string().describe("ID of the destination folder"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await driveApi.moveFile(accountName, {
                     file_id: args.file_id,
                     destination_folder_id: args.destination_folder_id,
@@ -904,9 +904,9 @@ ID: ${event.id || "No ID"}`;
             file_id: z.string().describe("ID of the file or folder to trash"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await driveApi.trashFile(accountName, args.file_id);
 
                 return { content: [{ type: "text", text: result }] };
@@ -929,9 +929,9 @@ ID: ${event.id || "No ID"}`;
             parent_folder_id: z.string().optional().describe("ID of the parent folder (defaults to root)"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await driveApi.createFolder(accountName, args.name, args.parent_folder_id);
 
                 return {
@@ -962,9 +962,9 @@ ID: ${event.id || "No ID"}`;
             sheet_id: z.number().optional().describe("Specific sheet ID to read (alternative to ranges)"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const data = await sheetsApi.readSheet(accountName, {
                     spreadsheet_id: args.spreadsheet_id,
                     ranges: args.ranges,
@@ -1001,9 +1001,9 @@ ID: ${event.id || "No ID"}`;
             value: z.string().describe("New cell value"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await sheetsApi.updateCell(accountName, {
                     spreadsheet_id: args.spreadsheet_id,
                     range: args.range,
@@ -1031,9 +1031,9 @@ ID: ${event.id || "No ID"}`;
             values: z.array(z.array(z.string())).describe("Array of rows, each row is an array of cell values"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await sheetsApi.appendRows(accountName, {
                     spreadsheet_id: args.spreadsheet_id,
                     range: args.range,
@@ -1060,9 +1060,9 @@ ID: ${event.id || "No ID"}`;
             sheet_titles: z.array(z.string()).optional().describe("Names of sheets to create (defaults to one sheet)"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await sheetsApi.createSpreadsheet(accountName, {
                     title: args.title,
                     sheet_titles: args.sheet_titles,
@@ -1094,9 +1094,9 @@ ID: ${event.id || "No ID"}`;
             document_id: z.string().describe("The ID of the Google Document to read"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await docsApi.readDocument(accountName, args.document_id);
 
                 return {
@@ -1124,9 +1124,9 @@ ID: ${event.id || "No ID"}`;
             body: z.string().optional().describe("Initial text content for the document"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await docsApi.createDocument(accountName, args.title, args.body);
 
                 return {
@@ -1157,9 +1157,9 @@ ID: ${event.id || "No ID"}`;
             label_ids: z.array(z.string()).optional().describe("Filter by label IDs (e.g., ['INBOX', 'UNREAD'])"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const messages = await gmailApi.listMessages(accountName, {
                     query: args.query,
                     max_results: args.max_results,
@@ -1195,9 +1195,9 @@ ID: ${event.id || "No ID"}`;
             message_id: z.string().describe("The ID of the message to read"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const message = await gmailApi.readMessage(accountName, args.message_id);
 
                 const details = `From: ${message.headers.from}
@@ -1231,9 +1231,9 @@ ${message.body}`;
             bcc: z.string().optional().describe("BCC recipient(s)"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const messageId = await gmailApi.sendEmail(accountName, {
                     to: args.to,
                     subject: args.subject,
@@ -1267,9 +1267,9 @@ ${message.body}`;
             max_results: z.number().optional().describe("Maximum number of results (default: 10)"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const messages = await gmailApi.searchEmails(accountName, args.query, args.max_results);
 
                 if (messages.length === 0) {
@@ -1303,9 +1303,9 @@ ${message.body}`;
             presentation_id: z.string().describe("The ID of the presentation"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const result = await slidesApi.getPresentation(accountName, args.presentation_id);
 
                 const slideTexts = result.slides
@@ -1336,9 +1336,9 @@ ${message.body}`;
             presentation_id: z.string().describe("The ID of the presentation"),
             account: accountParam,
         },
-        async (args) => {
+        async (args, extra) => {
             try {
-                const accountName = await resolveAccountName(args.account);
+                const accountName = await resolveAccountWithAcl(extra.sessionId, args.account);
                 const slidesList = await slidesApi.listSlides(accountName, args.presentation_id);
 
                 if (slidesList.length === 0) {

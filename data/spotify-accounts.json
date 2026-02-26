@@ -2,9 +2,9 @@
   "dancing-dead": {
     "displayName": "Dancing Dead",
     "spotifyUserId": "31zrqreuinlgwqno4x6e6crxqboe",
-    "accessToken": "BQCop0NapGu8_WuCY-jhApNNyquMH_l6I4Mcvv4PI7ougNJnKnq4c4MMzqR5O97JL_U1OuA1Ep6R0iEFSDu8hldxZGzkt1m_l_d6xjokNE-yv_RLq69wMTRdX79nKYckahqVOafCV_r391DEPjrzR1aGvwE-kM-lNaNJbwz7z8A3jUw6w9oxbOPSzsLurF4lhCiZcdqRgp-eUMCUjIo9xu3VmAhiKDklS16sWKcCznfHDRvW29Q3jXzqxJn85YRddBMGyf-lS0hEChfNcTtGmM04AAgHSKkyYrtN6UHsZrBiPrg8lDGcNcRtyeT1qc5Ujn-UBZiB-FvDWvIcUAQ7dIOaKCSElUWn8zsjyti6010oxQZLWFDZmsSA2M5NNqU",
+    "accessToken": "BQDrQqrqC8MAW_dVgcM-XJTMY6dKyCu5Gq8zQWuz8hRCeM4PuHd0VUwv7cNxOLs0ZgYXj_12yYWr0-fHSEleRyZX1dS0eNZqBMWGkDB-baeZmP1Rp287aXKwRC8uM9jnicxbl2OP_uLmfj7tFsyjA3eT4pLzmHp9gGhOIsdknQuzf_PyEwDwJtOKj_35H8lTJIbreW7AGtR-UsEKBq3lOwyuSDYKF3vXXYD2OV_3roV91XOM41o0WoNeP6uMnxF81I7Canex_TH5f2S3MQnm-PjyE3UwFCSFRsjOqdr9G35zQPxXTwGDTGL89tPug4xS7D_4Zs-51f4Fqtf7sx_OR0-3WETbbU37TbXDTcpgCBs7ldXzVyocG6AsgnPLuzQ",
     "refreshToken": "AQA2tChfJpCgOXx7-irG3UZDL71-gbw6u87FVLximSwyscq5Lwz1Ilitj5rdqhIHtUXCl2uQ9RM-BtLBh-fikHj5utjBC15EdE81jaS4OwXZpB0oIzHKoA1xaCvYmYxk-Ek",
-    "expiresAt": 1770997195455,
+    "expiresAt": 1772038923706,
     "scopes": "playlist-read-private playlist-read-collaborative ugc-image-upload playlist-modify-private user-read-email user-read-private user-modify-playback-state user-library-read user-library-modify playlist-modify-public user-read-playback-state user-read-currently-playing user-read-recently-played user-top-read",
     "addedAt": "2026-02-13T09:46:48.310Z"
   }
