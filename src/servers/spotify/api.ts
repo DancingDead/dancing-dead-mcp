@@ -1,3 +1,4 @@
+import fetch from "node-fetch";
 import { ensureValidToken } from "./auth.js";
 import { logger } from "../../config.js";
 

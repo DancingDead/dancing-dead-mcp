@@ -1,4 +1,5 @@
 import type { Application } from "express";
+import fetch from "node-fetch";
 import { logger } from "../../config.js";
 import { getAccount, setAccount } from "./store.js";
 

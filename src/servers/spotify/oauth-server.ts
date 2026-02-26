@@ -6,6 +6,7 @@
  */
 
 import express from "express";
+import fetch from "node-fetch";
 import { Server } from "node:http";
 import { exchangeCodeForTokens, getSpotifyConfig } from "./auth.js";
 import { setAccount } from "./store.js";

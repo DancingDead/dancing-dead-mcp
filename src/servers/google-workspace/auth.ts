@@ -1,4 +1,5 @@
 import type { Application } from "express";
+import fetch from "node-fetch";
 import { calendar } from "@googleapis/calendar";
 import { OAuth2Client } from "google-auth-library";
 import { logger } from "../../config.js";
