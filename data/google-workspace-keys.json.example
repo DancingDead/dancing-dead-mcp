@@ -1,19 +1,44 @@
 {
   "keys": {
-    "change-me-abc123": {
+    "change-me-theo": {
       "user": "theo",
-      "displayName": "Theo",
+      "displayName": "Théo",
       "allowedAccounts": ["theo", "dancing-dead"]
     },
-    "change-me-xyz789": {
-      "user": "alex",
-      "displayName": "Alex",
-      "allowedAccounts": ["alex", "dancing-dead"]
+    "change-me-pierre": {
+      "user": "pierre",
+      "displayName": "Pierre",
+      "allowedAccounts": ["pierre", "dancing-dead"]
     },
-    "change-me-def456": {
-      "user": "marie",
-      "displayName": "Marie",
-      "allowedAccounts": ["marie"]
+    "change-me-maodan": {
+      "user": "maodan",
+      "displayName": "Maodan",
+      "allowedAccounts": ["maodan", "dancing-dead"]
+    },
+    "change-me-naeleck": {
+      "user": "naeleck",
+      "displayName": "Naeleck",
+      "allowedAccounts": ["naeleck", "dancing-dead"]
+    },
+    "change-me-sandra": {
+      "user": "sandra",
+      "displayName": "Sandra",
+      "allowedAccounts": ["sandra", "dancing-dead"]
+    },
+    "change-me-matthieu": {
+      "user": "matthieu",
+      "displayName": "Matthieu",
+      "allowedAccounts": ["matthieu", "dancing-dead"]
+    },
+    "change-me-melissa": {
+      "user": "melissa",
+      "displayName": "Melissa",
+      "allowedAccounts": ["melissa"]
+    },
+    "change-me-roger": {
+      "user": "roger",
+      "displayName": "Roger",
+      "allowedAccounts": ["roger"]
     }
   }
 }

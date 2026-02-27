@@ -9,6 +9,7 @@ import * as gmailApi from "./gmail-api.js";
 import * as slidesApi from "./slides-api.js";
 import { resolveAccountWithAcl, listAccountsWithAcl, identifySession, getSessionPermissions, listKnownUsers } from "./acl.js";
 import { generateAuthUrl } from "./auth.js";
+import { removeAccount } from "./store.js";
 import { logger } from "../../config.js";
 
 // ── Reusable account parameter ─────────────────────
@@ -340,6 +341,36 @@ ID: ${event.id || "No ID"}`;
                         },
                     ],
 
+                };
+            }
+        }
+    );
+
+    // Tool: google-workspace-remove-account
+    server.tool(
+        "google-workspace-remove-account",
+        "Disconnect a Google Workspace account (removes stored credentials)",
+        {
+            account_name: z.string().describe("Name of the account to disconnect"),
+        },
+        async (args) => {
+            try {
+                await removeAccount(args.account_name);
+                logger.info(`[google-workspace] Account "${args.account_name}" removed`);
+                return {
+                    content: [{
+                        type: "text",
+                        text: `Account "${args.account_name}" has been disconnected and credentials removed.`,
+                    }],
+                };
+            } catch (error) {
+                logger.error("[google-workspace] remove-account error:", error);
+                return {
+                    content: [{
+                        type: "text",
+                        text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                    }],
+                    isError: true,
                 };
             }
         }

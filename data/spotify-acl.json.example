@@ -1,15 +1,35 @@
 {
   "users": {
     "theo": {
-      "displayName": "Theo",
-      "role": "admin"
+      "displayName": "Théo",
+      "role": "viewer"
     },
-    "alex": {
-      "displayName": "Alex (Playlist Manager)",
+    "pierre": {
+      "displayName": "Pierre",
+      "role": "viewer"
+    },
+    "maodan": {
+      "displayName": "Maodan",
+      "role": "viewer"
+    },
+    "naeleck": {
+      "displayName": "Naeleck",
       "role": "editor"
     },
-    "marie": {
-      "displayName": "Marie (Marketing)",
+    "sandra": {
+      "displayName": "Sandra",
+      "role": "editor"
+    },
+    "matthieu": {
+      "displayName": "Matthieu",
+      "role": "editor"
+    },
+    "melissa": {
+      "displayName": "Melissa",
+      "role": "viewer"
+    },
+    "roger": {
+      "displayName": "Roger",
       "role": "viewer"
     }
   },
